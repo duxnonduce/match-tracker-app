@@ -43,10 +43,10 @@ export default function AthleteMatches() {
         <h2 style={{fontSize:17}}>Partite registrate</h2>
         {matches.length === 0 && <p className="muted">Nessuna partita registrata ancora.</p>}
         {matches.map(m => (
-          <div key={m.id} className="list-item">
+          <Link key={m.id} href={`/dashboard/athlete/${params.id}/match/${m.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
             <span>{m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}</span>
-            <span className="muted">{m.meta?.formatLabel}</span>
-          </div>
+            <span className="muted">{m.meta?.formatLabel} →</span>
+          </Link>
         ))}
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function AthleteDashboard() {
   const router = useRouter();
@@ -50,10 +51,10 @@ export default function AthleteDashboard() {
         {error && <div className="error">{error}</div>}
         {matches.length === 0 && !error && <p className="muted">Nessuna partita registrata ancora.</p>}
         {matches.map(m => (
-          <div key={m.id} className="list-item">
+          <Link key={m.id} href={`/allievo/match/${m.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
             <span>{m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}</span>
-            <span className="muted">{m.meta?.formatLabel}</span>
-          </div>
+            <span className="muted">{m.meta?.formatLabel} →</span>
+          </Link>
         ))}
       </div>
     </div>
