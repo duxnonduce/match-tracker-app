@@ -1,4 +1,4 @@
-# Come mettere online la tua app — nessun codice da scrivere
+# Come mettere online la tua app — nessun codic da scrivere
 
 Tutto il "lavoro tecnico" è già fatto: ogni pagina, ogni pulsante, ogni funzione è già scritta dentro la cartella `webapp` che ti ho dato. Tu devi solo: creare 4 account gratuiti, copiare-incollare qualche codice che quei siti ti mostrano, e premere "Deploy". Ci vogliono circa 30-40 minuti la prima volta.
 
