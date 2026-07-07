@@ -1,8 +1,9 @@
 'use client';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-export default function TrackerPlaceholder() {
+function TrackerContent() {
   const params = useSearchParams();
   const athleteId = params.get('athleteId');
 
@@ -20,5 +21,13 @@ export default function TrackerPlaceholder() {
         <Link href="/dashboard" className="btn secondary">← Torna alla dashboard</Link>
       </div>
     </div>
+  );
+}
+
+export default function TrackerPlaceholder() {
+  return (
+    <Suspense fallback={<div className="wrap"><p className="muted">Caricamento…</p></div>}>
+      <TrackerContent />
+    </Suspense>
   );
 }
