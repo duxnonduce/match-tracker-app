@@ -45,14 +45,22 @@ export default function Dashboard() {
   }
 
   async function handleBuyPlan(planId) {
-    const res = await fetch('/api/billing/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coachId: session.user.id, coachEmail: session.user.email, plan: planId }),
-    });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else alert(data.error || 'Errore avvio pagamento');
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: session.user.id, coachEmail: session.user.email, plan: planId }),
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); }
+      catch (e) { throw new Error('Risposta inattesa dal server: ' + text.slice(0, 200)); }
+      if (!res.ok) throw new Error(data.error || 'Errore avvio pagamento');
+      if (data.url) window.location.href = data.url;
+      else throw new Error('Nessun link di pagamento ricevuto');
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    }
   }
 
   async function handleAddAthlete(e) {
