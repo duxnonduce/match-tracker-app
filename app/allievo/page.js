@@ -1,0 +1,58 @@
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function AthleteLogin() {
+  const router = useRouter();
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/athlete/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'PIN non valido');
+      localStorage.setItem('athlete_token', data.token);
+      localStorage.setItem('athlete_name', data.athlete.fullName);
+      router.push('/allievo/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="wrap">
+      <div className="card" style={{marginTop:60}}>
+        <h1 style={{fontSize:22}}>Accedi con il tuo PIN</h1>
+        <p className="muted">Il PIN te lo ha dato il tuo maestro.</p>
+        <form onSubmit={handleSubmit}>
+          <div className="field">
+            <label>PIN</label>
+            <input
+              value={pin}
+              onChange={e=>setPin(e.target.value)}
+              inputMode="numeric"
+              maxLength={6}
+              style={{textAlign:'center', fontSize:24, letterSpacing:8, fontFamily:'Oswald'}}
+              required
+            />
+          </div>
+          {error && <div className="error">{error}</div>}
+          <button className="btn block" type="submit" disabled={loading}>
+            {loading ? 'Verifica…' : 'Entra'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
