@@ -4,6 +4,21 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabaseClient';
 
+function initials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function formatMatchScore(m) {
+  if (!m.match) return '';
+  if (m.match.format?.matchType === 'tiebreakOnly') {
+    const tb = m.match.completedSets?.[0];
+    return tb ? `${tb.allievo}-${tb.avversario}` : '';
+  }
+  return m.match.setsWon ? `${m.match.setsWon.allievo}-${m.match.setsWon.avversario}` : '';
+}
+
 export default function AthleteMatches() {
   const router = useRouter();
   const params = useParams();
@@ -21,7 +36,7 @@ export default function AthleteMatches() {
 
       const { data: matchRows } = await supabase
         .from('matches')
-        .select('id, meta, created_at')
+        .select('id, meta, match, created_at')
         .eq('athlete_id', params.id)
         .order('created_at', { ascending: false });
       setMatches(matchRows || []);
@@ -34,18 +49,38 @@ export default function AthleteMatches() {
   return (
     <div className="wrap">
       <Link href="/dashboard" className="muted">← Torna alla dashboard</Link>
-      <div className="row" style={{marginTop:10, marginBottom:18}}>
-        <h1 style={{fontSize:22}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
-        <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
+
+      <div className="card" style={{marginTop:14}}>
+        <div className="row" style={{alignItems:'flex-start'}}>
+          <div className="li-main">
+            <div className="avatar lg">{initials(athlete?.full_name)}</div>
+            <div>
+              <h1 style={{fontSize:20, margin:0}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
+              {athlete?.birth_date && <div className="muted" style={{marginTop:3}}>Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}</div>}
+            </div>
+          </div>
+          <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
+        </div>
+
+        {(athlete?.phone || athlete?.email || athlete?.notes) && (
+          <div className="stat-mini-grid" style={{marginTop:16}}>
+            {athlete?.phone && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.phone}</div><div className="l">Telefono</div></div>}
+            {athlete?.email && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.email}</div><div className="l">Email</div></div>}
+            {athlete?.notes && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.notes}</div><div className="l">Note</div></div>}
+          </div>
+        )}
       </div>
 
       <div className="card">
-        <h2 style={{fontSize:17}}>Partite registrate</h2>
-        {matches.length === 0 && <p className="muted">Nessuna partita registrata ancora.</p>}
+        <h2 style={{fontSize:17}}>🎾 Partite registrate <span className="muted" style={{fontSize:13, fontWeight:400}}>({matches.length})</span></h2>
+        {matches.length === 0 && <p className="muted" style={{marginTop:8}}>Nessuna partita registrata ancora.</p>}
         {matches.map(m => (
           <Link key={m.id} href={`/dashboard/athlete/${params.id}/match/${m.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
-            <span>{m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}</span>
-            <span className="muted">{m.meta?.formatLabel} →</span>
+            <div className="li-text">
+              <div className="li-title">{m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}</div>
+              <div className="li-sub">{m.meta?.formatLabel}</div>
+            </div>
+            <span style={{fontFamily:'Oswald', color:'var(--accent)', fontSize:15, flexShrink:0}}>{formatMatchScore(m)}</span>
           </Link>
         ))}
       </div>

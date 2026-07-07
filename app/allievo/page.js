@@ -32,12 +32,12 @@ export default function AthleteLogin() {
 
   return (
     <div className="wrap">
-      <div className="card" style={{marginTop:60}}>
+      <div className="card" style={{marginTop:60, textAlign:'center'}}>
+        <div style={{fontSize:34, marginBottom:6}}>🎾</div>
         <h1 style={{fontSize:22}}>Accedi con il tuo PIN</h1>
         <p className="muted">Il PIN te lo ha dato il tuo maestro.</p>
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label>PIN</label>
             <input
               value={pin}
               onChange={e=>setPin(e.target.value)}

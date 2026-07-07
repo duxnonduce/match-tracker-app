@@ -5,6 +5,13 @@ export const metadata = {
   description: 'Registrazione partite e analisi per maestri di tennis',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#101d16',
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="it">

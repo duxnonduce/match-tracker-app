@@ -14,6 +14,12 @@ create table coaches (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
   full_name text,
+  first_name text,
+  last_name text,
+  phone text,
+  academy_name text,
+  academy_city text,
+  academy_address text,
   stripe_customer_id text,
   stripe_subscription_id text,
   plan_tier text default 'none',          -- 'none' | 'basic20' | 'plus50' | 'pro100'
@@ -22,12 +28,22 @@ create table coaches (
   created_at timestamptz default now()
 );
 
--- trigger: quando un utente si registra via Supabase Auth, crea automaticamente la riga coach
+-- trigger: quando un utente si registra via Supabase Auth, crea automaticamente la riga coach,
+-- leggendo i dati anagrafici extra passati come metadata dal form di registrazione.
 create function public.handle_new_coach()
 returns trigger as $$
 begin
-  insert into public.coaches (id, email)
-  values (new.id, new.email);
+  insert into public.coaches (id, email, first_name, last_name, phone, academy_name, academy_city, academy_address)
+  values (
+    new.id,
+    new.email,
+    new.raw_user_meta_data->>'first_name',
+    new.raw_user_meta_data->>'last_name',
+    new.raw_user_meta_data->>'phone',
+    new.raw_user_meta_data->>'academy_name',
+    new.raw_user_meta_data->>'academy_city',
+    new.raw_user_meta_data->>'academy_address'
+  );
   return new;
 end;
 $$ language plpgsql security definer;
@@ -44,6 +60,8 @@ create table athletes (
   coach_id uuid not null references coaches(id) on delete cascade,
   full_name text not null,
   birth_date date,
+  phone text,
+  email text,
   notes text,
   pin_hash text not null,          -- hash bcrypt del PIN, MAI il PIN in chiaro
   active boolean default true,

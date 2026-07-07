@@ -19,7 +19,7 @@ export async function POST(request) {
   // In produzione: verifica il JWT Supabase del maestro dall'header
   // Authorization e ricava coachId da lì (Supabase fornisce helper per
   // farlo sia in Next.js che in altri framework — vedi doc "Server-Side Auth").
-  const { coachId, fullName, birthDate, notes } = await request.json();
+  const { coachId, fullName, birthDate, phone, email, notes } = await request.json();
 
   if (!coachId || !fullName) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
@@ -58,7 +58,15 @@ export async function POST(request) {
 
   const { data: athlete, error } = await supabaseAdmin
     .from('athletes')
-    .insert({ coach_id: coachId, full_name: fullName, birth_date: birthDate, notes, pin_hash: pinHash })
+    .insert({
+      coach_id: coachId,
+      full_name: fullName,
+      birth_date: birthDate || null,
+      phone: phone || null,
+      email: email || null,
+      notes: notes || null,
+      pin_hash: pinHash,
+    })
     .select('id, full_name, created_at')
     .single();
 
