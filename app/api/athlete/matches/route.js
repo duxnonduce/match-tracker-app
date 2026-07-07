@@ -30,6 +30,15 @@ export async function GET(request) {
     return Response.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
+  const { data: coach } = await supabaseAdmin
+    .from('coaches')
+    .select('subscription_status')
+    .eq('id', athlete.coachId)
+    .single();
+  if (!coach || coach.subscription_status !== 'active') {
+    return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
+  }
+
   // Filtro esplicito per athlete_id: è QUESTO il punto in cui si applica
   // la sicurezza per gli allievi (dato che bypassano RLS con la service key).
   const { data, error } = await supabaseAdmin

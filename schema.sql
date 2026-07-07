@@ -25,6 +25,8 @@ create table coaches (
   plan_tier text default 'none',          -- 'none' | 'basic20' | 'plus50' | 'pro100'
   athlete_quota int default 0,             -- quanti allievi può registrare
   subscription_status text default 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
+  current_period_end timestamptz,
+  cancel_at_period_end boolean default false,
   created_at timestamptz default now()
 );
 
@@ -63,6 +65,8 @@ create table athletes (
   phone text,
   email text,
   notes text,
+  dominant_hand text, -- 'destra' | 'sinistra'
+  fiscal_code text,
   pin_hash text not null,          -- hash bcrypt del PIN, MAI il PIN in chiaro
   active boolean default true,
   created_at timestamptz default now()

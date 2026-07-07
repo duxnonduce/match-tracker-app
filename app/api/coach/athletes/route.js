@@ -1,9 +1,11 @@
 // FILE: /app/api/coach/athletes/route.js
 // Il maestro (loggato con Supabase Auth) aggiunge un nuovo allievo.
-// Qui applichiamo il controllo della quota del pacchetto acquistato.
+// Qui applichiamo il controllo della quota del pacchetto acquistato e
+// validiamo il codice fiscale contro nome/cognome/data di nascita.
 
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { validateCodiceFiscale } from '../../../../lib/codiceFiscale';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -19,13 +21,13 @@ export async function POST(request) {
   // In produzione: verifica il JWT Supabase del maestro dall'header
   // Authorization e ricava coachId da lì (Supabase fornisce helper per
   // farlo sia in Next.js che in altri framework — vedi doc "Server-Side Auth").
-  const { coachId, fullName, birthDate, phone, email, notes } = await request.json();
+  const { coachId, firstName, lastName, birthDate, phone, email, notes, dominantHand, fiscalCode } = await request.json();
 
-  if (!coachId || !fullName) {
+  if (!coachId || !firstName || !lastName) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
 
-  // 1) verifica quota del piano
+  // 1) verifica quota del piano E che l'abbonamento sia davvero attivo
   const { data: coach, error: coachErr } = await supabaseAdmin
     .from('coaches')
     .select('athlete_quota, subscription_status')
@@ -36,7 +38,7 @@ export async function POST(request) {
     return Response.json({ error: 'Maestro non trovato' }, { status: 404 });
   }
   if (coach.subscription_status !== 'active') {
-    return Response.json({ error: 'Abbonamento non attivo' }, { status: 402 });
+    return Response.json({ error: 'Abbonamento non attivo: rinnova per aggiungere allievi.' }, { status: 402 });
   }
 
   const { count } = await supabaseAdmin
@@ -52,9 +54,18 @@ export async function POST(request) {
     );
   }
 
-  // 2) genera PIN, salva solo l'hash
+  // 2) valida il codice fiscale (se fornito) contro i dati anagrafici
+  if (fiscalCode) {
+    const { valid, errors } = validateCodiceFiscale(fiscalCode, { firstName, lastName, birthDate });
+    if (!valid) {
+      return Response.json({ error: 'Codice fiscale non valido: ' + errors.join(' ') }, { status: 400 });
+    }
+  }
+
+  // 3) genera PIN, salva solo l'hash
   const pin = generatePin();
   const pinHash = bcrypt.hashSync(pin, 10);
+  const fullName = `${firstName} ${lastName}`.trim();
 
   const { data: athlete, error } = await supabaseAdmin
     .from('athletes')
@@ -65,6 +76,8 @@ export async function POST(request) {
       phone: phone || null,
       email: email || null,
       notes: notes || null,
+      dominant_hand: dominantHand || null,
+      fiscal_code: fiscalCode ? fiscalCode.toUpperCase() : null,
       pin_hash: pinHash,
     })
     .select('id, full_name, created_at')
@@ -76,6 +89,6 @@ export async function POST(request) {
 
   // Il PIN in chiaro viene restituito UNA SOLA VOLTA qui: mostralo al
   // maestro a schermo con un avviso "salvalo/comunicalo ora, non potrai
-  // rivederlo" (potrà solo rigenerarlo, invalidando quello vecchio).
+  // rivederlo" (potrà solo rigenerarlo con l'apposito pulsante).
   return Response.json({ athlete, pin });
 }

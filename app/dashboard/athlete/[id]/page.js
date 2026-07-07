@@ -22,14 +22,18 @@ function formatMatchScore(m) {
 export default function AthleteMatches() {
   const router = useRouter();
   const params = useParams();
+  const [session, setSession] = useState(null);
   const [athlete, setAthlete] = useState(null);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
+  const [newPin, setNewPin] = useState(null);
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      setSession(session);
 
       const { data: athleteRow } = await supabase.from('athletes').select('*').eq('id', params.id).single();
       setAthlete(athleteRow);
@@ -44,6 +48,26 @@ export default function AthleteMatches() {
     })();
   }, [params.id]);
 
+  async function handleRegeneratePin() {
+    if (!confirm(`Generare un nuovo PIN per ${athlete.full_name}? Il PIN attuale smetterà di funzionare subito.`)) return;
+    setRegenerating(true);
+    setNewPin(null);
+    try {
+      const res = await fetch(`/api/coach/athletes/${params.id}/regenerate-pin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: session.user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore');
+      setNewPin(data.pin);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
   return (
@@ -56,19 +80,33 @@ export default function AthleteMatches() {
             <div className="avatar lg">{initials(athlete?.full_name)}</div>
             <div>
               <h1 style={{fontSize:20, margin:0}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
-              {athlete?.birth_date && <div className="muted" style={{marginTop:3}}>Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}</div>}
+              {athlete?.birth_date && <div className="muted" style={{marginTop:3}}>Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}{athlete?.dominant_hand && ` · ${athlete.dominant_hand === 'sinistra' ? 'Mancino' : 'Destro'}`}</div>}
             </div>
           </div>
           <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
         </div>
 
-        {(athlete?.phone || athlete?.email || athlete?.notes) && (
+        {(athlete?.phone || athlete?.email || athlete?.fiscal_code || athlete?.notes) && (
           <div className="stat-mini-grid" style={{marginTop:16}}>
             {athlete?.phone && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.phone}</div><div className="l">Telefono</div></div>}
             {athlete?.email && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.email}</div><div className="l">Email</div></div>}
+            {athlete?.fiscal_code && <div className="stat-mini"><div className="v" style={{fontSize:11.5, letterSpacing:.5}}>{athlete.fiscal_code}</div><div className="l">Codice fiscale</div></div>}
             {athlete?.notes && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.notes}</div><div className="l">Note</div></div>}
           </div>
         )}
+
+        <div style={{marginTop:16, paddingTop:16, borderTop:'1px solid var(--line)'}}>
+          <button className="btn secondary" onClick={handleRegeneratePin} disabled={regenerating}>
+            🔑 {regenerating ? 'Generazione…' : 'Rigenera PIN'}
+          </button>
+          <p className="field-hint">Usa questo se l'allievo ha perso o dimenticato il PIN. Quello vecchio smette subito di funzionare.</p>
+          {newPin && (
+            <div className="pin-reveal">
+              <div className="muted">Nuovo PIN — comunicalo ora, non potrai rivederlo</div>
+              <div className="pin">{newPin}</div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="card">

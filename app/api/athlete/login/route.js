@@ -39,6 +39,18 @@ export async function POST(request) {
     return Response.json({ error: 'PIN non valido' }, { status: 401 });
   }
 
+  // Se il maestro non ha un abbonamento attivo (scaduto, pagamento fallito,
+  // disdetto), blocchiamo l'accesso anche ai suoi allievi.
+  const { data: coach } = await supabaseAdmin
+    .from('coaches')
+    .select('subscription_status')
+    .eq('id', match.coach_id)
+    .single();
+
+  if (!coach || coach.subscription_status !== 'active') {
+    return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo. Contattalo per maggiori informazioni.' }, { status: 403 });
+  }
+
   // Token firmato con un segreto TUO (diverso dalle chiavi Supabase),
   // valido per 12 ore. Contiene solo ciò che serve per capire chi è.
   const token = jwt.sign(

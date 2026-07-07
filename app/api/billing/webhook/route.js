@@ -1,7 +1,7 @@
 // FILE: /app/api/billing/webhook/route.js
 // Stripe chiama QUESTO endpoint (non il browser del maestro) quando
-// succede qualcosa all'abbonamento: pagamento riuscito, rinnovo, disdetta...
-// È qui che aggiorniamo davvero il piano/quota nel database.
+// succede qualcosa all'abbonamento: pagamento riuscito, rinnovo, disdetta,
+// cambio piano... È qui che teniamo sincronizzato il database con Stripe.
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -20,8 +20,6 @@ export async function POST(request) {
 
   let event;
   try {
-    // Verifica che la chiamata arrivi davvero da Stripe (firma segreta
-    // ottenuta quando configuri il webhook — vedi FASE 2 della guida).
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return Response.json({ error: `Firma webhook non valida: ${err.message}` }, { status: 400 });
@@ -41,25 +39,35 @@ export async function POST(request) {
       break;
     }
 
+    // Copre sia i rinnovi automatici, sia i cambi di piano fatti dal
+    // maestro (upgrade/downgrade), sia i pagamenti falliti (status
+    // diventa 'past_due' — il maestro e i suoi allievi restano bloccati
+    // finché non torna 'active').
     case 'customer.subscription.updated': {
       const sub = event.data.object;
-      const status = sub.status === 'active' ? 'active' : sub.status; // 'past_due', 'canceled', ecc.
-      await supabaseAdmin.from('coaches')
-        .update({ subscription_status: status })
-        .eq('stripe_subscription_id', sub.id);
+      const plan = sub.metadata?.plan;
+      const update = {
+        subscription_status: sub.status, // 'active' | 'past_due' | 'canceled' | 'unpaid' | ...
+        current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+        cancel_at_period_end: !!sub.cancel_at_period_end,
+      };
+      if (plan && QUOTA_BY_PLAN[plan]) {
+        update.plan_tier = plan;
+        update.athlete_quota = QUOTA_BY_PLAN[plan];
+      }
+      await supabaseAdmin.from('coaches').update(update).eq('stripe_subscription_id', sub.id);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
       await supabaseAdmin.from('coaches')
-        .update({ subscription_status: 'canceled', athlete_quota: 0 })
+        .update({ subscription_status: 'canceled', athlete_quota: 0, cancel_at_period_end: false })
         .eq('stripe_subscription_id', sub.id);
       break;
     }
 
     default:
-      // altri eventi Stripe che non ci interessano: ignorali pure
       break;
   }
 
@@ -68,5 +76,3 @@ export async function POST(request) {
 
 // Importante: questo endpoint deve ricevere il BODY GREZZO (non parsato
 // come JSON) perché Stripe verifica la firma sul testo esatto ricevuto.
-// In Next.js App Router basta usare request.text() come sopra; se usi
-// Express, ricordati di NON applicare express.json() su questa rotta.
