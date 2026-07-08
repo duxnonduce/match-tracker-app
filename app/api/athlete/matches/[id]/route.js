@@ -40,7 +40,7 @@ export async function GET(request, { params }) {
   // partita di un altro, né una bozza non ancora rilasciata.
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('meta, stats, log, match, coach_rating, coach_comment')
+    .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal')
     .eq('id', params.id)
     .eq('athlete_id', athlete.athleteId)
     .eq('published_to_athlete', true)

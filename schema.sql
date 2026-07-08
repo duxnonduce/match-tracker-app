@@ -92,6 +92,10 @@ create table matches (
   match jsonb,
   coach_rating int check (coach_rating is null or (coach_rating between 1 and 10)),
   coach_comment text,
+  coach_summary text,
+  coach_worked_well text,
+  coach_to_improve text,
+  coach_next_goal text,
   published_to_athlete boolean default false,
   created_at timestamptz default now()
 );
@@ -137,3 +141,33 @@ create policy "coach manages own matches"
 -- browser agli allievi: il loro accesso passa sempre dalle tue API
 -- (che usano la service_role key, la quale bypassa RLS di proposito
 -- e applica il filtro "where athlete_id = ..." nel codice).
+
+-- ------------------------------------------------------------
+-- TABELLA: training_sessions (sessioni di allenamento)
+-- ------------------------------------------------------------
+create table training_sessions (
+  id uuid primary key default gen_random_uuid(),
+  coach_id uuid not null references coaches(id) on delete cascade,
+  athlete_id uuid not null references athletes(id) on delete cascade,
+  shot_type text not null,
+  started_at timestamptz not null,
+  ended_at timestamptz,
+  episodes jsonb not null default '[]'::jsonb,
+  coach_rating int check (coach_rating is null or (coach_rating between 1 and 10)),
+  coach_summary text,
+  coach_worked_well text,
+  coach_to_improve text,
+  coach_next_goal text,
+  published_to_athlete boolean default false,
+  created_at timestamptz default now()
+);
+
+create index idx_training_coach on training_sessions(coach_id);
+create index idx_training_athlete on training_sessions(athlete_id);
+
+alter table training_sessions enable row level security;
+
+create policy "coach manages own training sessions"
+  on training_sessions for all
+  using (coach_id = auth.uid())
+  with check (coach_id = auth.uid());

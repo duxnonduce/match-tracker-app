@@ -4,10 +4,20 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabaseClient';
 
+const SHOT_LABELS = {
+  dritto: 'Diritto', rovescio: 'Rovescio', servizio: 'Servizio', volee: 'Volée',
+  smash: 'Smash', dropshot: 'Drop Shot', back: 'Back', cesto: 'Cesto/Multipalla',
+};
+
 function initials(name) {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
+}
+
+function maskFiscalCode(cf) {
+  if (!cf || cf.length < 10) return cf;
+  return cf.slice(0, 6) + '•'.repeat(cf.length - 9) + cf.slice(-3);
 }
 
 function formatMatchScore(m) {
@@ -25,9 +35,11 @@ export default function AthleteMatches() {
   const [session, setSession] = useState(null);
   const [athlete, setAthlete] = useState(null);
   const [matches, setMatches] = useState([]);
+  const [trainingSessions, setTrainingSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [newPin, setNewPin] = useState(null);
+  const [showFiscalCode, setShowFiscalCode] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -38,12 +50,18 @@ export default function AthleteMatches() {
       const { data: athleteRow } = await supabase.from('athletes').select('*').eq('id', params.id).single();
       setAthlete(athleteRow);
 
-      const { data: matchRows } = await supabase
-        .from('matches')
-        .select('id, meta, match, published_to_athlete, coach_rating, created_at')
-        .eq('athlete_id', params.id)
-        .order('created_at', { ascending: false });
+      const [{ data: matchRows }, { data: trainingRows }] = await Promise.all([
+        supabase.from('matches')
+          .select('id, meta, match, published_to_athlete, coach_rating, created_at')
+          .eq('athlete_id', params.id)
+          .order('created_at', { ascending: false }),
+        supabase.from('training_sessions')
+          .select('id, shot_type, started_at, episodes, published_to_athlete, coach_rating')
+          .eq('athlete_id', params.id)
+          .order('started_at', { ascending: false }),
+      ]);
       setMatches(matchRows || []);
+      setTrainingSessions(trainingRows || []);
       setLoading(false);
     })();
   }, [params.id]);
@@ -83,14 +101,24 @@ export default function AthleteMatches() {
               {athlete?.birth_date && <div className="muted" style={{marginTop:3}}>Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}{athlete?.dominant_hand && ` · ${athlete.dominant_hand === 'sinistra' ? 'Mancino' : 'Destro'}`}</div>}
             </div>
           </div>
-          <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
+          <div style={{display:'flex', flexDirection:'column', gap:8}}>
+            <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
+            <Link href={`/training?athleteId=${params.id}`} className="btn secondary">🎯 Nuovo allenamento</Link>
+          </div>
         </div>
 
         {(athlete?.phone || athlete?.email || athlete?.fiscal_code || athlete?.notes) && (
           <div className="stat-mini-grid" style={{marginTop:16}}>
             {athlete?.phone && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.phone}</div><div className="l">Telefono</div></div>}
             {athlete?.email && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.email}</div><div className="l">Email</div></div>}
-            {athlete?.fiscal_code && <div className="stat-mini"><div className="v" style={{fontSize:11.5, letterSpacing:.5}}>{athlete.fiscal_code}</div><div className="l">Codice fiscale</div></div>}
+            {athlete?.fiscal_code && (
+              <div className="stat-mini">
+                <div className="v" style={{fontSize:11.5, letterSpacing:.5, cursor:'pointer'}} onClick={()=>setShowFiscalCode(s=>!s)}>
+                  {showFiscalCode ? athlete.fiscal_code : maskFiscalCode(athlete.fiscal_code)}
+                </div>
+                <div className="l">Codice fiscale · <a style={{cursor:'pointer'}} onClick={()=>setShowFiscalCode(s=>!s)}>{showFiscalCode ? 'nascondi' : 'mostra'}</a></div>
+              </div>
+            )}
             {athlete?.notes && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.notes}</div><div className="l">Note</div></div>}
           </div>
         )}
@@ -102,8 +130,9 @@ export default function AthleteMatches() {
           <p className="field-hint">Usa questo se l'allievo ha perso o dimenticato il PIN. Quello vecchio smette subito di funzionare.</p>
           {newPin && (
             <div className="pin-reveal">
-              <div className="muted">Nuovo PIN — comunicalo ora, non potrai rivederlo</div>
+              <div className="muted">PIN generato. Comunicalo ora all'allievo. Non sarà più visibile.</div>
               <div className="pin">{newPin}</div>
+              <button className="btn secondary" style={{marginTop:10}} onClick={()=>setNewPin(null)}>Ho preso nota, nascondi</button>
             </div>
           )}
         </div>
@@ -124,6 +153,27 @@ export default function AthleteMatches() {
             <span style={{fontFamily:'Oswald', color:'var(--accent)', fontSize:15, flexShrink:0}}>{formatMatchScore(m)}</span>
           </Link>
         ))}
+      </div>
+
+      <div className="card">
+        <h2 style={{fontSize:17}}>🎯 Allenamenti <span className="muted" style={{fontSize:13, fontWeight:400}}>({trainingSessions.length})</span></h2>
+        {trainingSessions.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allenamento registrato ancora.</p>}
+        {trainingSessions.map(t => {
+          const ep = t.episodes || [];
+          const riusciti = ep.filter(e => e.result === 'riuscito').length;
+          return (
+            <Link key={t.id} href={`/dashboard/athlete/${params.id}/training/${t.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
+              <div className="li-text">
+                <div className="li-title">
+                  {SHOT_LABELS[t.shot_type] || t.shot_type}
+                  {!t.published_to_athlete && <span style={{marginLeft:8, fontSize:10.5, color:'var(--muted)', border:'1px solid var(--line)', borderRadius:6, padding:'1px 6px', textTransform:'uppercase', letterSpacing:.5}}>Bozza</span>}
+                </div>
+                <div className="li-sub">{new Date(t.started_at).toLocaleDateString('it-IT')}{t.coach_rating ? ` · ⭐ ${t.coach_rating}/10` : ''}</div>
+              </div>
+              <span style={{fontFamily:'Oswald', color:'var(--accent)', fontSize:15, flexShrink:0}}>{ep.length ? `${riusciti}/${ep.length}` : ''}</span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

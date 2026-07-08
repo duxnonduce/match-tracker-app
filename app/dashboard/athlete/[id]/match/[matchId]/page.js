@@ -13,7 +13,10 @@ export default function CoachMatchDetail() {
   const [error, setError] = useState('');
 
   const [rating, setRating] = useState(null);
-  const [comment, setComment] = useState('');
+  const [summary, setSummary] = useState('');
+  const [workedWell, setWorkedWell] = useState('');
+  const [toImprove, setToImprove] = useState('');
+  const [nextGoal, setNextGoal] = useState('');
   const [published, setPublished] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -29,7 +32,7 @@ export default function CoachMatchDetail() {
 
       const { data, error: err } = await supabase
         .from('matches')
-        .select('meta, stats, log, match, coach_rating, coach_comment, published_to_athlete')
+        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete')
         .eq('id', params.matchId)
         .single();
 
@@ -39,7 +42,10 @@ export default function CoachMatchDetail() {
       }
       setRecord(data);
       setRating(data.coach_rating || null);
-      setComment(data.coach_comment || '');
+      setSummary(data.coach_summary || '');
+      setWorkedWell(data.coach_worked_well || '');
+      setToImprove(data.coach_to_improve || '');
+      setNextGoal(data.coach_next_goal || '');
       setPublished(!!data.published_to_athlete);
     })();
   }, [params.matchId]);
@@ -48,13 +54,18 @@ export default function CoachMatchDetail() {
     setSaving(true);
     setSaveMsg('');
     try {
-      const { error } = await supabase
-        .from('matches')
-        .update({ coach_rating: rating, coach_comment: comment.trim() || null, published_to_athlete: publishNow })
-        .eq('id', params.matchId);
+      const update = {
+        coach_rating: rating,
+        coach_summary: summary.trim() || null,
+        coach_worked_well: workedWell.trim() || null,
+        coach_to_improve: toImprove.trim() || null,
+        coach_next_goal: nextGoal.trim() || null,
+        published_to_athlete: publishNow,
+      };
+      const { error } = await supabase.from('matches').update(update).eq('id', params.matchId);
       if (error) throw error;
       setPublished(publishNow);
-      setRecord(r => ({ ...r, coach_rating: rating, coach_comment: comment.trim() || null, published_to_athlete: publishNow }));
+      setRecord(r => ({ ...r, ...update }));
       setSaveMsg(publishNow ? '✅ Pubblicato per l\'allievo.' : '💾 Salvato come bozza (non visibile all\'allievo).');
       if (publishNow) {
         fetch('/api/notify/match-published', {
@@ -98,14 +109,20 @@ export default function CoachMatchDetail() {
       {record && (
         <div className="wrap" style={{paddingTop:0, marginTop:-24}}>
           <div className="card">
-            <h2 style={{fontSize:16}}>👨‍🏫 Valutazione e commento</h2>
-            <p className="muted" style={{marginBottom:12}}>Visibile all'allievo solo dopo che pubblichi. Puoi salvarla come bozza e pubblicarla più tardi.</p>
-            <div className="rating-picker" style={{marginBottom:12}}>
+            <h2 style={{fontSize:16}}>👨‍🏫 Report per l'allievo</h2>
+            <p className="muted" style={{marginBottom:12}}>Visibile all'allievo solo dopo che pubblichi. Puoi salvarlo come bozza e pubblicarlo più tardi.</p>
+            <div className="rating-picker" style={{marginBottom:14}}>
               {Array.from({length:10}, (_, i) => i+1).map(n => (
                 <button key={n} type="button" className={'rating-btn' + (rating===n ? ' selected' : '')} onClick={()=>setRating(rating===n ? null : n)}>{n}</button>
               ))}
             </div>
-            <textarea className="textarea" rows={3} placeholder="Commento personale (facoltativo)" value={comment} onChange={e=>setComment(e.target.value)} />
+            {record.coach_comment && !summary && (
+              <p className="field-hint" style={{marginBottom:10}}>Commento precedente (formato vecchio): "{record.coach_comment}" — puoi riportarlo nei campi qui sotto se vuoi tenerlo.</p>
+            )}
+            <div className="field"><label>Sintesi</label><textarea className="textarea" rows={2} value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Com'è andata la partita in generale" /></div>
+            <div className="field"><label>Cosa ha funzionato</label><textarea className="textarea" rows={2} value={workedWell} onChange={e=>setWorkedWell(e.target.value)} /></div>
+            <div className="field"><label>Cosa migliorare</label><textarea className="textarea" rows={2} value={toImprove} onChange={e=>setToImprove(e.target.value)} /></div>
+            <div className="field"><label>Obiettivo per il prossimo allenamento</label><textarea className="textarea" rows={2} value={nextGoal} onChange={e=>setNextGoal(e.target.value)} /></div>
             <div className="row" style={{gap:8, marginTop:12}}>
               <button className="btn secondary" style={{flex:1}} disabled={saving} onClick={()=>handleSaveReview(false)}>💾 Salva bozza</button>
               <button className="btn" style={{flex:1}} disabled={saving} onClick={()=>handleSaveReview(true)}>📤 {published ? 'Aggiorna pubblicato' : 'Pubblica per l\'allievo'}</button>

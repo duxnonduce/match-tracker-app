@@ -1,7 +1,4 @@
-// FILE: /app/api/athlete/matches/route.js
-// L'allievo, una volta loggato con il PIN, chiama questo endpoint per
-// vedere SOLO le proprie partite. Nota: nessuna route di scrittura è
-// esposta a questo ruolo — è di sola lettura per design.
+// FILE: /app/api/athlete/training/[id]/route.js
 
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
@@ -18,13 +15,13 @@ function getAthleteFromToken(request) {
   try {
     const payload = jwt.verify(token, process.env.ATHLETE_JWT_SECRET);
     if (payload.role !== 'athlete') return null;
-    return payload; // { athleteId, coachId, role }
+    return payload;
   } catch (e) {
-    return null; // token scaduto o non valido
+    return null;
   }
 }
 
-export async function GET(request) {
+export async function GET(request, { params }) {
   const athlete = getAthleteFromToken(request);
   if (!athlete) {
     return Response.json({ error: 'Non autenticato' }, { status: 401 });
@@ -39,20 +36,17 @@ export async function GET(request) {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
   }
 
-  // Filtro esplicito per athlete_id: è QUESTO il punto in cui si applica
-  // la sicurezza per gli allievi (dato che bypassano RLS con la service key).
-  // published_to_athlete=true esclude le partite che il maestro non ha
-  // ancora "rilasciato" (bozze con eventuale valutazione non finita).
   const { data, error } = await supabaseAdmin
-    .from('matches')
-    .select('id, meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, created_at')
+    .from('training_sessions')
+    .select('*')
+    .eq('id', params.id)
     .eq('athlete_id', athlete.athleteId)
     .eq('published_to_athlete', true)
-    .order('created_at', { ascending: false });
+    .single();
 
-  if (error) {
-    return Response.json({ error: 'Errore database' }, { status: 500 });
+  if (error || !data) {
+    return Response.json({ error: 'Allenamento non trovato' }, { status: 404 });
   }
 
-  return Response.json({ matches: data });
+  return Response.json({ session: data });
 }

@@ -387,8 +387,9 @@ export default function Dashboard() {
 
             {revealedPin && (
               <div className="pin-reveal">
-                <div className="muted">PIN per {revealedPin.name} — comunicalo ora, non potrai rivederlo</div>
+                <div className="muted">PIN generato per <b style={{color:'var(--text)'}}>{revealedPin.name}</b>. Comunicalo ora all'allievo. Non sarà più visibile.</div>
                 <div className="pin">{revealedPin.pin}</div>
+                <button className="btn secondary" style={{marginTop:10}} onClick={()=>setRevealedPin(null)}>Ho preso nota, nascondi</button>
               </div>
             )}
           </div>
