@@ -56,6 +56,13 @@ export default function CoachMatchDetail() {
       setPublished(publishNow);
       setRecord(r => ({ ...r, coach_rating: rating, coach_comment: comment.trim() || null, published_to_athlete: publishNow }));
       setSaveMsg(publishNow ? '✅ Pubblicato per l\'allievo.' : '💾 Salvato come bozza (non visibile all\'allievo).');
+      if (publishNow) {
+        fetch('/api/notify/match-published', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ matchId: params.matchId }),
+        }).catch(() => {}); // non bloccante: se l'email fallisce, la pubblicazione resta comunque valida
+      }
     } catch (err) {
       setSaveMsg('Errore: ' + err.message);
     } finally {

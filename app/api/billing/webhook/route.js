@@ -1,10 +1,12 @@
 // FILE: /app/api/billing/webhook/route.js
 // Stripe chiama QUESTO endpoint (non il browser del maestro) quando
 // succede qualcosa all'abbonamento: pagamento riuscito, rinnovo, disdetta,
-// cambio piano... È qui che teniamo sincronizzato il database con Stripe.
+// cambio piano... È qui che teniamo sincronizzato il database con Stripe,
+// e da qui parte l'email di conferma abbonamento.
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { sendSubscriptionConfirmedEmail } from '../../../../lib/email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabaseAdmin = createClient(
@@ -13,6 +15,21 @@ const supabaseAdmin = createClient(
 );
 
 const QUOTA_BY_PLAN = { basic20: 20, plus50: 50, pro100: 100 };
+const PLAN_LABELS = { basic20: 'Base', plus50: 'Plus', pro100: 'Pro' };
+
+// Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
+// abbonamento al livello della singola voce (item) dell'abbonamento.
+// Questo helper legge dal posto giusto, con un fallback al vecchio
+// campo nel caso il tuo account usi ancora una versione API precedente.
+function getPeriodEnd(sub) {
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
+  return fromItem ?? sub.current_period_end ?? null;
+}
+
+function formatDateIt(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 export async function POST(request) {
   const sig = request.headers.get('stripe-signature');
@@ -29,13 +46,39 @@ export async function POST(request) {
     case 'checkout.session.completed': {
       const session = event.data.object;
       const { coachId, plan } = session.metadata;
+
+      // Recuperiamo la sottoscrizione per sapere la data di rinnovo da mettere nell'email.
+      let periodEndIso = null;
+      try {
+        const sub = await stripe.subscriptions.retrieve(session.subscription, { expand: ['items'] });
+        const periodEndUnix = getPeriodEnd(sub);
+        periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+      } catch (e) { /* non bloccante: mandiamo comunque l'email senza data se fallisce */ }
+
       await supabaseAdmin.from('coaches').update({
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
         plan_tier: plan,
         athlete_quota: QUOTA_BY_PLAN[plan] || 0,
         subscription_status: 'active',
+        current_period_end: periodEndIso,
+        renewal_reminder_sent_at: null, // reset: nuovo ciclo, nuovo eventuale promemoria
       }).eq('id', coachId);
+
+      try {
+        const { data: coach } = await supabaseAdmin.from('coaches').select('email, first_name').eq('id', coachId).single();
+        if (coach) {
+          await sendSubscriptionConfirmedEmail({
+            toEmail: coach.email,
+            coachName: coach.first_name,
+            planLabel: PLAN_LABELS[plan] || plan,
+            quota: QUOTA_BY_PLAN[plan],
+            periodEndFormatted: formatDateIt(periodEndIso),
+          });
+        }
+      } catch (e) {
+        console.warn('invio email conferma abbonamento fallito (non bloccante):', e);
+      }
       break;
     }
 
@@ -46,15 +89,26 @@ export async function POST(request) {
     case 'customer.subscription.updated': {
       const sub = event.data.object;
       const plan = sub.metadata?.plan;
+      const periodEndUnix = getPeriodEnd(sub);
+      const newPeriodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+
+      const { data: existing } = await supabaseAdmin
+        .from('coaches').select('current_period_end').eq('stripe_subscription_id', sub.id).single();
+      const periodRolledOver = existing && existing.current_period_end !== newPeriodEndIso;
+
       const update = {
         subscription_status: sub.status, // 'active' | 'past_due' | 'canceled' | 'unpaid' | ...
-        current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+        current_period_end: newPeriodEndIso,
         cancel_at_period_end: !!sub.cancel_at_period_end,
       };
       if (plan && QUOTA_BY_PLAN[plan]) {
         update.plan_tier = plan;
         update.athlete_quota = QUOTA_BY_PLAN[plan];
       }
+      // Azzeriamo il flag del promemoria SOLO se è iniziato davvero un nuovo
+      // ciclo di fatturazione, non ad ogni modifica minore della sottoscrizione.
+      if (periodRolledOver) update.renewal_reminder_sent_at = null;
+
       await supabaseAdmin.from('coaches').update(update).eq('stripe_subscription_id', sub.id);
       break;
     }

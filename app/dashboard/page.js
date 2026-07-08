@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [revealedPin, setRevealedPin] = useState(null);
   const [billingBusy, setBillingBusy] = useState(false);
   const [showPlanSwitch, setShowPlanSwitch] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -150,6 +151,24 @@ export default function Dashboard() {
       alert('Errore: ' + err.message);
     } finally {
       setBillingBusy(false);
+    }
+  }
+
+  async function handleSyncSubscription() {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/billing/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: session.user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore');
+      await loadData(session.user.id);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -256,12 +275,17 @@ export default function Dashboard() {
               <div style={{width:usagePct+'%', height:'100%', background:'var(--accent)', borderRadius:20, transition:'width .3s'}}></div>
             </div>
 
-            {coach.current_period_end && (
+            {coach.current_period_end ? (
               <p className="muted" style={{marginTop:12, marginBottom:0}}>
                 {coach.cancel_at_period_end
                   ? <>⚠️ Annullamento programmato: accesso attivo fino al <b style={{color:'var(--text)'}}>{formatDate(coach.current_period_end)}</b>, poi non verrà rinnovato.</>
                   : <>Rinnovo automatico il <b style={{color:'var(--text)'}}>{formatDate(coach.current_period_end)}</b>.</>
                 }
+              </p>
+            ) : (
+              <p className="muted" style={{marginTop:12, marginBottom:0}}>
+                Data di rinnovo non disponibile.{' '}
+                <a style={{cursor:'pointer'}} onClick={handleSyncSubscription}>{syncing ? 'Sincronizzazione…' : 'Sincronizza con Stripe'}</a>
               </p>
             )}
 

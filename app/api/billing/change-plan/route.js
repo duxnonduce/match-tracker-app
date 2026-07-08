@@ -19,6 +19,13 @@ const PRICE_IDS = {
 };
 const QUOTA_BY_PLAN = { basic20: 20, plus50: 50, pro100: 100 };
 
+// Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
+// abbonamento al livello della singola voce (item) dell'abbonamento.
+function getPeriodEnd(sub) {
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
+  return fromItem ?? sub.current_period_end ?? null;
+}
+
 export async function POST(request) {
   const { coachId, newPlan } = await request.json();
 
@@ -65,7 +72,10 @@ export async function POST(request) {
       items: [{ id: itemId, price: priceId }],
       proration_behavior: 'create_prorations',
       metadata: { coachId, plan: newPlan },
+      expand: ['items'],
     });
+
+    const periodEndUnix = getPeriodEnd(updated);
 
     // Aggiorniamo subito anche noi (il webhook arriverà comunque a
     // confermare, ma così l'interfaccia si aggiorna all'istante).
@@ -73,7 +83,7 @@ export async function POST(request) {
       plan_tier: newPlan,
       athlete_quota: QUOTA_BY_PLAN[newPlan],
       subscription_status: updated.status,
-      current_period_end: updated.current_period_end ? new Date(updated.current_period_end * 1000).toISOString() : null,
+      current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
     }).eq('id', coachId);
 
     return Response.json({ ok: true, plan: newPlan });

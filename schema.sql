@@ -27,6 +27,7 @@ create table coaches (
   subscription_status text default 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
   current_period_end timestamptz,
   cancel_at_period_end boolean default false,
+  renewal_reminder_sent_at timestamptz,
   created_at timestamptz default now()
 );
 
