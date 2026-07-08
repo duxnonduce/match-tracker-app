@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import { validateCodiceFiscale } from '../../lib/codiceFiscale';
+import ConfirmDialog from '../../lib/ConfirmDialog';
 
 const PLANS = [
   { id: 'basic20', label: 'Base', quota: 20, icon: '🌱', tagline: 'per iniziare' },
@@ -18,10 +19,14 @@ function initials(name) {
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
 }
-
 function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+function priceLabel(planPrices, planId) {
+  const p = planPrices?.[planId];
+  if (!p) return '';
+  return `${p.formatted}${p.interval === 'month' ? '/mese' : p.interval === 'year' ? '/anno' : ''}`;
 }
 
 const STATUS_LABELS = {
@@ -37,6 +42,7 @@ export default function Dashboard() {
   const [session, setSession] = useState(null);
   const [coach, setCoach] = useState(null);
   const [athletes, setAthletes] = useState([]);
+  const [planPrices, setPlanPrices] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newAthlete, setNewAthlete] = useState(EMPTY_ATHLETE);
   const [showAthleteForm, setShowAthleteForm] = useState(false);
@@ -46,6 +52,13 @@ export default function Dashboard() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [showPlanSwitch, setShowPlanSwitch] = useState(false);
 
+  // dialog di conferma per il cambio pacchetto (con differenza prezzo)
+  const [planChangeTarget, setPlanChangeTarget] = useState(null);
+
+  // dialog a doppia conferma per l'annullamento
+  const [cancelStep, setCancelStep] = useState(0); // 0=chiuso, 1=avviso, 2=conferma scritta
+  const [cancelTyped, setCancelTyped] = useState('');
+
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -53,13 +66,12 @@ export default function Dashboard() {
       setSession(session);
       await loadData(session.user.id);
       setLoading(false);
+      fetch('/api/billing/plans').then(r => r.json()).then(d => setPlanPrices(d.plans || {})).catch(() => {});
     })();
   }, []);
 
-  // Validazione live del codice fiscale mentre il maestro digita
   useEffect(() => {
-    if (!newAthlete.fiscalCode) { setCfWarning(''); return; }
-    if (newAthlete.fiscalCode.length < 16) { setCfWarning(''); return; }
+    if (!newAthlete.fiscalCode || newAthlete.fiscalCode.length < 16) { setCfWarning(''); return; }
     const { valid, errors } = validateCodiceFiscale(newAthlete.fiscalCode, {
       firstName: newAthlete.firstName, lastName: newAthlete.lastName, birthDate: newAthlete.birthDate,
     });
@@ -99,18 +111,41 @@ export default function Dashboard() {
     }
   }
 
-  async function handleChangePlan(newPlan) {
+  async function confirmChangePlan() {
+    if (!planChangeTarget) return;
     setBillingBusy(true);
     try {
       const res = await fetch('/api/billing/change-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, newPlan }),
+        body: JSON.stringify({ coachId: session.user.id, newPlan: planChangeTarget }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore cambio pacchetto');
       await loadData(session.user.id);
       setShowPlanSwitch(false);
+      setPlanChangeTarget(null);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      setPlanChangeTarget(null);
+    } finally {
+      setBillingBusy(false);
+    }
+  }
+
+  async function confirmCancel() {
+    setBillingBusy(true);
+    try {
+      const res = await fetch('/api/billing/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: session.user.id, action: 'cancel' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore');
+      await loadData(session.user.id);
+      setCancelStep(0);
+      setCancelTyped('');
     } catch (err) {
       alert('Errore: ' + err.message);
     } finally {
@@ -118,14 +153,13 @@ export default function Dashboard() {
     }
   }
 
-  async function handleCancelOrReactivate(action) {
-    if (action === 'cancel' && !confirm('Annullare l\'abbonamento a fine periodo? Potrai continuare a usarlo fino alla scadenza già pagata, poi tu e i tuoi allievi perderete l\'accesso.')) return;
+  async function handleReactivate() {
     setBillingBusy(true);
     try {
       const res = await fetch('/api/billing/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, action }),
+        body: JSON.stringify({ coachId: session.user.id, action: 'reactivate' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
@@ -164,6 +198,8 @@ export default function Dashboard() {
   const usagePct = coach && coach.athlete_quota ? Math.min(100, Math.round(100 * athletes.length / coach.athlete_quota)) : 0;
   const statusInfo = coach ? (STATUS_LABELS[coach.subscription_status] || STATUS_LABELS.inactive) : STATUS_LABELS.inactive;
   const coachDisplayName = coach?.first_name ? `${coach.first_name} ${coach.last_name || ''}`.trim() : (coach?.email || '');
+  const currentPlan = PLANS.find(p => p.id === coach?.plan_tier);
+  const targetPlan = PLANS.find(p => p.id === planChangeTarget);
 
   return (
     <div className="wrap">
@@ -192,6 +228,7 @@ export default function Dashboard() {
                 <div className="icon">{p.icon}</div>
                 <h3>{p.label}</h3>
                 <div className="price">fino a {p.quota} allievi</div>
+                {planPrices && <div style={{fontFamily:'Oswald', fontSize:16, marginBottom:4}}>{priceLabel(planPrices, p.id)}</div>}
                 <p className="muted" style={{fontSize:12, marginBottom:14}}>{p.tagline}</p>
                 <button className="btn block" onClick={()=>handleBuyPlan(p.id)}>Acquista</button>
               </div>
@@ -205,7 +242,8 @@ export default function Dashboard() {
               <div>
                 <div className="muted">Pacchetto attuale</div>
                 <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2}}>
-                  {PLANS.find(p=>p.id===coach.plan_tier)?.icon || '🎾'} {coach.plan_tier}
+                  {currentPlan?.icon || '🎾'} {coach.plan_tier}
+                  {planPrices && <span style={{fontSize:13, marginLeft:8, color:'var(--muted)', fontFamily:'Inter'}}>{priceLabel(planPrices, coach.plan_tier)}</span>}
                   <span style={{color:statusInfo.color, fontSize:12, marginLeft:8, fontFamily:'Inter'}}>● {statusInfo.label}</span>
                 </div>
               </div>
@@ -232,9 +270,9 @@ export default function Dashboard() {
                 {showPlanSwitch ? 'Chiudi' : '🔁 Cambia pacchetto'}
               </button>
               {coach.cancel_at_period_end ? (
-                <button className="btn secondary" style={{flex:1}} disabled={billingBusy} onClick={()=>handleCancelOrReactivate('reactivate')}>↩ Riattiva</button>
+                <button className="btn secondary" style={{flex:1}} disabled={billingBusy} onClick={handleReactivate}>↩ Riattiva</button>
               ) : (
-                <button className="btn danger" style={{flex:1}} disabled={billingBusy} onClick={()=>handleCancelOrReactivate('cancel')}>Annulla abbonamento</button>
+                <button className="btn danger" style={{flex:1}} disabled={billingBusy} onClick={()=>setCancelStep(1)}>Annulla abbonamento</button>
               )}
             </div>
 
@@ -245,7 +283,8 @@ export default function Dashboard() {
                     <div className="icon">{p.icon}</div>
                     <h3>{p.label}</h3>
                     <div className="price">fino a {p.quota} allievi</div>
-                    <button className="btn block" disabled={billingBusy} onClick={()=>handleChangePlan(p.id)}>
+                    {planPrices && <div style={{fontFamily:'Oswald', fontSize:15, marginBottom:8}}>{priceLabel(planPrices, p.id)}</div>}
+                    <button className="btn block" disabled={billingBusy} onClick={()=>setPlanChangeTarget(p.id)}>
                       {p.quota > coach.athlete_quota ? '↑ Upgrade' : '↓ Downgrade'}
                     </button>
                   </div>
@@ -327,6 +366,72 @@ export default function Dashboard() {
           </div>
         </>
       )}
+
+      {/* ---- Conferma cambio pacchetto, con differenza di prezzo ---- */}
+      <ConfirmDialog
+        open={!!planChangeTarget}
+        title="Confermi il cambio pacchetto?"
+        confirmLabel="Conferma cambio pacchetto"
+        busy={billingBusy}
+        onCancel={()=>setPlanChangeTarget(null)}
+        onConfirm={confirmChangePlan}
+      >
+        <div className="price-compare">
+          <div className="pc-item">
+            <div className="label">Attuale</div>
+            <div className="amount">{currentPlan?.label}</div>
+            <div className="muted" style={{fontSize:12}}>{priceLabel(planPrices, coach?.plan_tier)}</div>
+          </div>
+          <div className="arrow">→</div>
+          <div className="pc-item">
+            <div className="label">Nuovo</div>
+            <div className="amount" style={{color:'var(--accent)'}}>{targetPlan?.label}</div>
+            <div className="muted" style={{fontSize:12}}>{priceLabel(planPrices, planChangeTarget)}</div>
+          </div>
+        </div>
+        <p className="muted" style={{fontSize:13}}>
+          Stripe addebiterà o accrediterà automaticamente la differenza proporzionale ai giorni rimanenti del periodo in corso. La quota allievi passerà a {targetPlan?.quota}.
+        </p>
+      </ConfirmDialog>
+
+      {/* ---- Annullamento: passo 1, avviso ---- */}
+      <ConfirmDialog
+        open={cancelStep === 1}
+        title="Annullare l'abbonamento?"
+        confirmLabel="Continua"
+        danger
+        onCancel={()=>setCancelStep(0)}
+        onConfirm={()=>setCancelStep(2)}
+      >
+        <p>
+          Il tuo accesso resterà attivo fino al <b>{formatDate(coach?.current_period_end)}</b> (già pagato).
+          Da quel momento, <b>tu e i tuoi {athletes.length} allievi</b> non potrete più accedere ai dati finché non riattivi un pacchetto.
+        </p>
+      </ConfirmDialog>
+
+      {/* ---- Annullamento: passo 2, conferma scritta ---- */}
+      <ConfirmDialog
+        open={cancelStep === 2}
+        title="Conferma definitiva"
+        confirmLabel="Annulla abbonamento"
+        danger
+        busy={billingBusy}
+        confirmDisabled={cancelTyped.trim().toUpperCase() !== 'ANNULLA'}
+        onCancel={()=>{setCancelStep(0); setCancelTyped('');}}
+        onConfirm={confirmCancel}
+      >
+        <p className="muted">Per confermare, scrivi <b style={{color:'var(--text)'}}>ANNULLA</b> qui sotto:</p>
+        <input
+          className="field-hint"
+          style={{width:'100%', padding:'12px 14px', borderRadius:10, border:'1px solid var(--line)', background:'var(--surface2)', color:'var(--text)', marginTop:6, fontSize:16}}
+          value={cancelTyped}
+          onChange={e=>setCancelTyped(e.target.value)}
+          autoFocus
+        />
+        {cancelTyped && cancelTyped.trim().toUpperCase() !== 'ANNULLA' && (
+          <div className="error">Scrivi esattamente "ANNULLA" per abilitare il pulsante.</div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

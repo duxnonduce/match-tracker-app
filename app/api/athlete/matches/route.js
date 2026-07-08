@@ -41,10 +41,13 @@ export async function GET(request) {
 
   // Filtro esplicito per athlete_id: è QUESTO il punto in cui si applica
   // la sicurezza per gli allievi (dato che bypassano RLS con la service key).
+  // published_to_athlete=true esclude le partite che il maestro non ha
+  // ancora "rilasciato" (bozze con eventuale valutazione non finita).
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('id, meta, stats, log, match, created_at')
+    .select('id, meta, stats, log, match, coach_rating, coach_comment, created_at')
     .eq('athlete_id', athlete.athleteId)
+    .eq('published_to_athlete', true)
     .order('created_at', { ascending: false });
 
   if (error) {

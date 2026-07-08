@@ -40,7 +40,7 @@ export default function AthleteMatches() {
 
       const { data: matchRows } = await supabase
         .from('matches')
-        .select('id, meta, match, created_at')
+        .select('id, meta, match, published_to_athlete, coach_rating, created_at')
         .eq('athlete_id', params.id)
         .order('created_at', { ascending: false });
       setMatches(matchRows || []);
@@ -115,8 +115,11 @@ export default function AthleteMatches() {
         {matches.map(m => (
           <Link key={m.id} href={`/dashboard/athlete/${params.id}/match/${m.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
             <div className="li-text">
-              <div className="li-title">{m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}</div>
-              <div className="li-sub">{m.meta?.formatLabel}</div>
+              <div className="li-title">
+                {m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}
+                {!m.published_to_athlete && <span style={{marginLeft:8, fontSize:10.5, color:'var(--muted)', border:'1px solid var(--line)', borderRadius:6, padding:'1px 6px', textTransform:'uppercase', letterSpacing:.5}}>Bozza</span>}
+              </div>
+              <div className="li-sub">{m.meta?.formatLabel}{m.coach_rating ? ` · ⭐ ${m.coach_rating}/10` : ''}</div>
             </div>
             <span style={{fontFamily:'Oswald', color:'var(--accent)', fontSize:15, flexShrink:0}}>{formatMatchScore(m)}</span>
           </Link>

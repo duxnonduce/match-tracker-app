@@ -86,6 +86,9 @@ create table matches (
   stats jsonb not null,
   log jsonb not null,
   match jsonb,
+  coach_rating int check (coach_rating is null or (coach_rating between 1 and 10)),
+  coach_comment text,
+  published_to_athlete boolean default false,
   created_at timestamptz default now()
 );
 

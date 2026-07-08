@@ -26,13 +26,24 @@ export async function GET(request, { params }) {
     return Response.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  // Doppio filtro (id della partita + athlete_id del token): un allievo
-  // non può mai vedere la partita di un altro, anche indovinando un id.
+  const { data: coach } = await supabaseAdmin
+    .from('coaches')
+    .select('subscription_status')
+    .eq('id', athlete.coachId)
+    .single();
+  if (!coach || coach.subscription_status !== 'active') {
+    return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
+  }
+
+  // Triplo filtro: id della partita + athlete_id del token + deve essere
+  // stata pubblicata dal maestro. Un allievo non può mai vedere la
+  // partita di un altro, né una bozza non ancora rilasciata.
   const { data, error } = await supabaseAdmin
     .from('matches')
-    .select('meta, stats, log, match')
+    .select('meta, stats, log, match, coach_rating, coach_comment')
     .eq('id', params.id)
     .eq('athlete_id', athlete.athleteId)
+    .eq('published_to_athlete', true)
     .single();
 
   if (error || !data) {
