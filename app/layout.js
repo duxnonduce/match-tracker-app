@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Match Tracker · Tennis',
+  title: 'PointLab · Tennis',
   description: 'Registrazione partite e analisi per maestri di tennis',
 };
 

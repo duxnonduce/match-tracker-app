@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Footer from '../lib/Footer';
 
 export default function Home() {
   return (
@@ -39,6 +40,8 @@ export default function Home() {
         <p className="muted" style={{marginBottom:16}}>Scegli un pacchetto in base al numero di allievi che segui, e inizia subito.</p>
         <Link href="/login" className="btn">Crea il tuo account →</Link>
       </div>
+
+      <Footer />
     </div>
   );
 }

@@ -28,6 +28,7 @@ create table coaches (
   current_period_end timestamptz,
   cancel_at_period_end boolean default false,
   renewal_reminder_sent_at timestamptz,
+  terms_accepted_at timestamptz,
   created_at timestamptz default now()
 );
 
@@ -36,7 +37,7 @@ create table coaches (
 create function public.handle_new_coach()
 returns trigger as $$
 begin
-  insert into public.coaches (id, email, first_name, last_name, phone, academy_name, academy_city, academy_address)
+  insert into public.coaches (id, email, first_name, last_name, phone, academy_name, academy_city, academy_address, terms_accepted_at)
   values (
     new.id,
     new.email,
@@ -45,7 +46,8 @@ begin
     new.raw_user_meta_data->>'phone',
     new.raw_user_meta_data->>'academy_name',
     new.raw_user_meta_data->>'academy_city',
-    new.raw_user_meta_data->>'academy_address'
+    new.raw_user_meta_data->>'academy_address',
+    (new.raw_user_meta_data->>'terms_accepted_at')::timestamptz
   );
   return new;
 end;
@@ -68,6 +70,7 @@ create table athletes (
   notes text,
   dominant_hand text, -- 'destra' | 'sinistra'
   fiscal_code text,
+  parental_consent_confirmed_at timestamptz,
   pin_hash text not null,          -- hash bcrypt del PIN, MAI il PIN in chiaro
   active boolean default true,
   created_at timestamptz default now()

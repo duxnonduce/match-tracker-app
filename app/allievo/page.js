@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Footer from '../../lib/Footer';
 
 export default function AthleteLogin() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function AthleteLogin() {
           </button>
         </form>
       </div>
+      <Footer />
     </div>
   );
 }

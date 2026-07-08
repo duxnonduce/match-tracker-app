@@ -12,7 +12,7 @@ const PLANS = [
   { id: 'pro100', label: 'Pro', quota: 100, icon: '🏆', tagline: 'accademie grandi' },
 ];
 
-const EMPTY_ATHLETE = { firstName: '', lastName: '', birthDate: '', phone: '', email: '', notes: '', dominantHand: '', fiscalCode: '' };
+const EMPTY_ATHLETE = { firstName: '', lastName: '', birthDate: '', phone: '', email: '', notes: '', dominantHand: '', fiscalCode: '', parentalConsent: false };
 
 function initials(name) {
   if (!name) return '?';
@@ -194,10 +194,14 @@ export default function Dashboard() {
     e.preventDefault();
     setAddError('');
     setRevealedPin(null);
+    if (!newAthlete.parentalConsent) {
+      setAddError('Devi confermare di avere il consenso del genitore/tutore (se l\'allievo è minorenne) prima di procedere.');
+      return;
+    }
     const res = await fetch('/api/coach/athletes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coachId: session.user.id, ...newAthlete }),
+      body: JSON.stringify({ coachId: session.user.id, ...newAthlete, parentalConsentConfirmed: true }),
     });
     const data = await res.json();
     if (!res.ok) { setAddError(data.error || 'Errore'); return; }
@@ -355,7 +359,24 @@ export default function Dashboard() {
                   <div className="field"><label>Telefono</label><input type="tel" value={newAthlete.phone} onChange={e=>setNewAthlete(a=>({...a, phone:e.target.value}))} placeholder="Allievo o genitore" /></div>
                   <div className="field"><label>Email</label><input type="email" value={newAthlete.email} onChange={e=>setNewAthlete(a=>({...a, email:e.target.value}))} /></div>
                 </div>
-                <div className="field"><label>Note</label><input value={newAthlete.notes} onChange={e=>setNewAthlete(a=>({...a, notes:e.target.value}))} placeholder="Categoria, obiettivi, infortuni..." /></div>
+                <div className="field">
+                  <label>Note</label>
+                  <input value={newAthlete.notes} onChange={e=>setNewAthlete(a=>({...a, notes:e.target.value}))} placeholder="Categoria, obiettivi tecnici..." />
+                  <div className="field-hint">Evita di inserire qui dati sanitari (es. infortuni, condizioni mediche): richiedono un consenso specifico che questo campo non raccoglie.</div>
+                </div>
+                <div className="field" style={{display:'flex', alignItems:'flex-start', gap:10, background:'var(--surface2)', padding:'12px 14px', borderRadius:10}}>
+                  <input
+                    type="checkbox"
+                    id="parental-consent"
+                    checked={newAthlete.parentalConsent}
+                    onChange={e=>setNewAthlete(a=>({...a, parentalConsent:e.target.checked}))}
+                    style={{width:18, height:18, marginTop:2, flexShrink:0}}
+                  />
+                  <label htmlFor="parental-consent" style={{fontSize:13, color:'var(--text)', textTransform:'none', letterSpacing:0, fontWeight:400}}>
+                    Confermo di avere il diritto di inserire questi dati e, se l'allievo è minorenne,
+                    il consenso del genitore/tutore legale al trattamento (vedi <a href="/privacy" target="_blank">Informativa Privacy</a>).
+                  </label>
+                </div>
                 <div className="row" style={{gap:8}}>
                   <button className="btn secondary" type="button" onClick={()=>{setShowAthleteForm(false); setAddError(''); setNewAthlete(EMPTY_ATHLETE);}} style={{flex:1}}>Annulla</button>
                   <button className="btn" type="submit" style={{flex:1}}>Aggiungi</button>

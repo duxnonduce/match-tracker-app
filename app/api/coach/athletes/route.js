@@ -21,10 +21,13 @@ export async function POST(request) {
   // In produzione: verifica il JWT Supabase del maestro dall'header
   // Authorization e ricava coachId da lì (Supabase fornisce helper per
   // farlo sia in Next.js che in altri framework — vedi doc "Server-Side Auth").
-  const { coachId, firstName, lastName, birthDate, phone, email, notes, dominantHand, fiscalCode } = await request.json();
+  const { coachId, firstName, lastName, birthDate, phone, email, notes, dominantHand, fiscalCode, parentalConsentConfirmed } = await request.json();
 
   if (!coachId || !firstName || !lastName) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
+  }
+  if (!parentalConsentConfirmed) {
+    return Response.json({ error: 'Devi confermare di avere il consenso del genitore/tutore (se l\'allievo è minorenne) prima di procedere.' }, { status: 400 });
   }
 
   // 1) verifica quota del piano E che l'abbonamento sia davvero attivo
@@ -78,6 +81,7 @@ export async function POST(request) {
       notes: notes || null,
       dominant_hand: dominantHand || null,
       fiscal_code: fiscalCode ? fiscalCode.toUpperCase() : null,
+      parental_consent_confirmed_at: new Date().toISOString(),
       pin_hash: pinHash,
     })
     .select('id, full_name, created_at')

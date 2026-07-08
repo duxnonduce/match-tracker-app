@@ -1,7 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import Footer from '../../lib/Footer';
 
 const EMPTY_FORM = {
   email: '', password: '',
@@ -13,6 +15,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [form, setForm] = useState(EMPTY_FORM);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,6 +28,12 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (mode === 'signup' && !acceptedTerms) {
+      setError('Devi accettare i Termini di Servizio e l\'Informativa Privacy per continuare.');
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === 'signup') {
@@ -39,6 +48,7 @@ export default function LoginPage() {
               academy_name: form.academyName,
               academy_city: form.academyCity,
               academy_address: form.academyAddress,
+              terms_accepted_at: new Date().toISOString(),
             },
           },
         });
@@ -46,6 +56,7 @@ export default function LoginPage() {
         setSuccess('Account creato! Controlla la tua email per confermare, poi accedi.');
         setMode('login');
         setForm(EMPTY_FORM);
+        setAcceptedTerms(false);
       } else {
         const { error: err } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
         if (err) throw err;
@@ -98,6 +109,25 @@ export default function LoginPage() {
             <input type="password" value={form.password} onChange={set('password')} required minLength={6} />
           </div>
 
+          {mode === 'signup' && (
+            <div className="field" style={{display:'flex', alignItems:'flex-start', gap:10}}>
+              <input
+                type="checkbox"
+                id="accept-terms"
+                checked={acceptedTerms}
+                onChange={e=>setAcceptedTerms(e.target.checked)}
+                style={{width:18, height:18, marginTop:2, flexShrink:0}}
+                required
+              />
+              <label htmlFor="accept-terms" style={{fontSize:13, color:'var(--muted)', textTransform:'none', letterSpacing:0, fontWeight:400}}>
+                Dichiaro di aver letto e accettato i <Link href="/termini" target="_blank">Termini di Servizio</Link> e
+                l'<Link href="/privacy" target="_blank">Informativa Privacy</Link>, e confermo di essere un maestro/istruttore
+                maggiorenne. Sono consapevole che, inserendo dati di allievi minorenni, dichiaro di avere il consenso dei
+                rispettivi genitori/tutori.
+              </label>
+            </div>
+          )}
+
           {error && <div className="error">{error}</div>}
           {success && <div className="success">{success}</div>}
 
@@ -113,6 +143,7 @@ export default function LoginPage() {
           )}
         </p>
       </div>
+      <Footer />
     </div>
   );
 }
