@@ -22,6 +22,7 @@ export default function AthleteDashboard() {
   const [name, setName] = useState('');
   const [matches, setMatches] = useState([]);
   const [trainingSessions, setTrainingSessions] = useState([]);
+  const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -31,9 +32,10 @@ export default function AthleteDashboard() {
     setName(localStorage.getItem('athlete_name') || '');
 
     (async () => {
-      const [matchesRes, trainingRes] = await Promise.all([
+      const [matchesRes, trainingRes, goalsRes] = await Promise.all([
         fetch('/api/athlete/matches', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/athlete/training', { headers: { Authorization: `Bearer ${token}` } }),
+        fetch('/api/athlete/goals', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       if (matchesRes.status === 401) {
         localStorage.removeItem('athlete_token');
@@ -47,6 +49,10 @@ export default function AthleteDashboard() {
       if (trainingRes.ok) {
         const trainingData = await trainingRes.json();
         setTrainingSessions(trainingData.sessions || []);
+      }
+      if (goalsRes.ok) {
+        const goalsData = await goalsRes.json();
+        setGoals(goalsData.goals || []);
       }
       setLoading(false);
     })();
@@ -71,6 +77,27 @@ export default function AthleteDashboard() {
           </div>
         </div>
         <button className="btn secondary" onClick={handleLogout}>Esci</button>
+      </div>
+
+      <div className="card">
+        <h2 style={{fontSize:17}}>🎯 I tuoi obiettivi</h2>
+        {goals.filter(g=>g.status==='in_corso').length === 0 && goals.filter(g=>g.status==='raggiunto').length === 0 && (
+          <p className="muted" style={{marginTop:8}}>Il tuo maestro non ha ancora impostato obiettivi.</p>
+        )}
+        {goals.filter(g=>g.status==='in_corso').map(g => (
+          <div key={g.id} className="list-item">
+            <div className="li-text"><div className="li-title">{g.title}</div><div className="li-sub">In corso</div></div>
+          </div>
+        ))}
+        {goals.filter(g=>g.status==='raggiunto').length > 0 && (
+          <div style={{marginTop:10}}>
+            {goals.filter(g=>g.status==='raggiunto').map(g => (
+              <div key={g.id} className="row" style={{fontSize:13, padding:'7px 0', borderBottom:'1px solid var(--line)'}}>
+                <span style={{color:'var(--muted)', textDecoration:'line-through'}}>✓ {g.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">

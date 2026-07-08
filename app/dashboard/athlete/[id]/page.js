@@ -36,6 +36,11 @@ export default function AthleteMatches() {
   const [athlete, setAthlete] = useState(null);
   const [matches, setMatches] = useState([]);
   const [trainingSessions, setTrainingSessions] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [newGoalTitle, setNewGoalTitle] = useState('');
+  const [goalBusy, setGoalBusy] = useState(false);
+  const [goalError, setGoalError] = useState('');
+  const [showAchievedGoals, setShowAchievedGoals] = useState(false);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [newPin, setNewPin] = useState(null);
@@ -50,7 +55,7 @@ export default function AthleteMatches() {
       const { data: athleteRow } = await supabase.from('athletes').select('*').eq('id', params.id).single();
       setAthlete(athleteRow);
 
-      const [{ data: matchRows }, { data: trainingRows }] = await Promise.all([
+      const [{ data: matchRows }, { data: trainingRows }, { data: goalRows }] = await Promise.all([
         supabase.from('matches')
           .select('id, meta, match, published_to_athlete, coach_rating, created_at')
           .eq('athlete_id', params.id)
@@ -59,12 +64,97 @@ export default function AthleteMatches() {
           .select('id, shot_type, started_at, episodes, published_to_athlete, coach_rating')
           .eq('athlete_id', params.id)
           .order('started_at', { ascending: false }),
+        supabase.from('athlete_goals')
+          .select('id, title, status, published_to_athlete, created_at, achieved_at')
+          .eq('athlete_id', params.id)
+          .order('created_at', { ascending: false }),
       ]);
       setMatches(matchRows || []);
       setTrainingSessions(trainingRows || []);
+      setGoals(goalRows || []);
       setLoading(false);
     })();
   }, [params.id]);
+
+  async function loadGoals() {
+    const { data } = await supabase.from('athlete_goals')
+      .select('id, title, status, published_to_athlete, created_at, achieved_at')
+      .eq('athlete_id', params.id)
+      .order('created_at', { ascending: false });
+    setGoals(data || []);
+  }
+
+  const activeGoals = goals.filter(g => g.status === 'in_corso');
+  const achievedGoals = goals.filter(g => g.status === 'raggiunto');
+
+  async function handleAddGoal(e) {
+    e.preventDefault();
+    setGoalError('');
+    if (activeGoals.length >= 3) {
+      setGoalError('Puoi avere al massimo 3 obiettivi attivi contemporaneamente. Segnane uno come raggiunto per aggiungerne un altro.');
+      return;
+    }
+    if (!newGoalTitle.trim()) return;
+    setGoalBusy(true);
+    try {
+      const { error } = await supabase.from('athlete_goals').insert({
+        coach_id: session.user.id,
+        athlete_id: params.id,
+        title: newGoalTitle.trim(),
+      });
+      if (error) throw error;
+      setNewGoalTitle('');
+      await loadGoals();
+    } catch (err) {
+      setGoalError('Errore: ' + err.message);
+    } finally {
+      setGoalBusy(false);
+    }
+  }
+
+  async function handleMarkAchieved(goalId) {
+    setGoalBusy(true);
+    try {
+      const { error } = await supabase.from('athlete_goals')
+        .update({ status: 'raggiunto', achieved_at: new Date().toISOString() })
+        .eq('id', goalId);
+      if (error) throw error;
+      await loadGoals();
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setGoalBusy(false);
+    }
+  }
+
+  async function handlePublishGoal(goalId) {
+    setGoalBusy(true);
+    try {
+      const { error } = await supabase.from('athlete_goals')
+        .update({ published_to_athlete: true })
+        .eq('id', goalId);
+      if (error) throw error;
+      await loadGoals();
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setGoalBusy(false);
+    }
+  }
+
+  async function handleDeleteGoal(goalId) {
+    if (!confirm('Eliminare questo obiettivo?')) return;
+    setGoalBusy(true);
+    try {
+      const { error } = await supabase.from('athlete_goals').delete().eq('id', goalId);
+      if (error) throw error;
+      await loadGoals();
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setGoalBusy(false);
+    }
+  }
 
   async function handleRegeneratePin() {
     if (!confirm(`Generare un nuovo PIN per ${athlete.full_name}? Il PIN attuale smetterà di funzionare subito.`)) return;
@@ -136,6 +226,57 @@ export default function AthleteMatches() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="card">
+        <h2 style={{fontSize:17}}>🎯 Obiettivi <span className="muted" style={{fontSize:13, fontWeight:400}}>({activeGoals.length}/3 attivi)</span></h2>
+
+        {activeGoals.length === 0 && <p className="muted" style={{marginTop:8, marginBottom:12}}>Nessun obiettivo attivo — aggiungine uno qui sotto.</p>}
+        {activeGoals.map(g => (
+          <div key={g.id} className="list-item">
+            <div className="li-text">
+              <div className="li-title">
+                {g.title}
+                {!g.published_to_athlete && <span style={{marginLeft:8, fontSize:10.5, color:'var(--muted)', border:'1px solid var(--line)', borderRadius:6, padding:'1px 6px', textTransform:'uppercase', letterSpacing:.5}}>Bozza</span>}
+              </div>
+            </div>
+            <div style={{display:'flex', gap:6, flexShrink:0}}>
+              {!g.published_to_athlete && (
+                <button className="btn secondary" style={{padding:'8px 12px', fontSize:12.5}} disabled={goalBusy} onClick={()=>handlePublishGoal(g.id)}>📤 Pubblica</button>
+              )}
+              <button className="btn secondary" style={{padding:'8px 12px', fontSize:12.5}} disabled={goalBusy} onClick={()=>handleMarkAchieved(g.id)}>✓ Raggiunto</button>
+              <button className="btn secondary" style={{padding:'8px 10px', fontSize:12.5, color:'var(--danger)'}} disabled={goalBusy} onClick={()=>handleDeleteGoal(g.id)}>🗑</button>
+            </div>
+          </div>
+        ))}
+
+        {activeGoals.length < 3 && (
+          <form onSubmit={handleAddGoal} className="row" style={{gap:8, marginTop:8}}>
+            <input
+              value={newGoalTitle}
+              onChange={e=>setNewGoalTitle(e.target.value)}
+              placeholder="Es. Ridurre i doppi falli"
+              style={{flex:1, padding:'11px 14px', borderRadius:10, border:'1px solid var(--line)', background:'var(--surface2)', color:'var(--text)', fontSize:14}}
+            />
+            <button className="btn" type="submit" disabled={goalBusy || !newGoalTitle.trim()}>Aggiungi</button>
+          </form>
+        )}
+        <p className="field-hint">I nuovi obiettivi restano in bozza finché non premi "Pubblica" — l'allievo non li vede prima.</p>
+        {goalError && <div className="error">{goalError}</div>}
+
+        {achievedGoals.length > 0 && (
+          <div style={{marginTop:16, paddingTop:14, borderTop:'1px solid var(--line)'}}>
+            <a style={{cursor:'pointer', fontSize:13, color:'var(--muted)'}} onClick={()=>setShowAchievedGoals(s=>!s)}>
+              {showAchievedGoals ? '▾' : '▸'} Storico obiettivi raggiunti ({achievedGoals.length})
+            </a>
+            {showAchievedGoals && achievedGoals.map(g => (
+              <div key={g.id} className="row" style={{fontSize:13, padding:'8px 0', borderBottom:'1px solid var(--line)'}}>
+                <span style={{color:'var(--muted)', textDecoration:'line-through'}}>✓ {g.title}</span>
+                <span className="muted" style={{fontSize:11.5}}>{g.achieved_at ? new Date(g.achieved_at).toLocaleDateString('it-IT') : ''}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card">

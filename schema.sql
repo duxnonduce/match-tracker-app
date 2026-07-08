@@ -171,3 +171,27 @@ create policy "coach manages own training sessions"
   on training_sessions for all
   using (coach_id = auth.uid())
   with check (coach_id = auth.uid());
+
+-- ------------------------------------------------------------
+-- TABELLA: athlete_goals (obiettivi tecnici strutturati)
+-- ------------------------------------------------------------
+create table athlete_goals (
+  id uuid primary key default gen_random_uuid(),
+  coach_id uuid not null references coaches(id) on delete cascade,
+  athlete_id uuid not null references athletes(id) on delete cascade,
+  title text not null,
+  status text not null default 'in_corso',  -- 'in_corso' | 'raggiunto'
+  published_to_athlete boolean default false,
+  created_at timestamptz default now(),
+  achieved_at timestamptz
+);
+
+create index idx_goals_coach on athlete_goals(coach_id);
+create index idx_goals_athlete on athlete_goals(athlete_id);
+
+alter table athlete_goals enable row level security;
+
+create policy "coach manages own goals"
+  on athlete_goals for all
+  using (coach_id = auth.uid())
+  with check (coach_id = auth.uid());
