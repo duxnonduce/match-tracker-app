@@ -1,7 +1,35 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '../lib/Footer';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Home() {
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      // Allievo già loggato (token PIN salvato)? vai dritto alla sua dashboard.
+      if (typeof window !== 'undefined' && localStorage.getItem('athlete_token')) {
+        router.replace('/allievo/dashboard');
+        return;
+      }
+      // Maestro già loggato (sessione Supabase attiva)? vai dritto alla dashboard.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.replace('/dashboard');
+        return;
+      }
+      setChecking(false);
+    })();
+  }, []);
+
+  if (checking) {
+    return <div className="wrap"><p className="muted" style={{marginTop:60, textAlign:'center'}}>Caricamento…</p></div>;
+  }
+
   return (
     <div className="wrap" style={{maxWidth:760}}>
       <div className="hero">

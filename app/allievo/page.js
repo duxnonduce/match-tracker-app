@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Footer from '../../lib/Footer';
 
@@ -8,6 +8,20 @@ export default function AthleteLogin() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('athlete_token');
+    if (!token) { setChecking(false); return; }
+    // C'è già un token salvato: verifichiamolo prima di mostrare di nuovo il PIN.
+    (async () => {
+      const res = await fetch('/api/athlete/matches', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { router.replace('/allievo/dashboard'); return; }
+      localStorage.removeItem('athlete_token');
+      localStorage.removeItem('athlete_name');
+      setChecking(false);
+    })();
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -29,6 +43,10 @@ export default function AthleteLogin() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return <div className="wrap"><p className="muted" style={{marginTop:60, textAlign:'center'}}>Caricamento…</p></div>;
   }
 
   return (

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
@@ -19,6 +19,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { router.replace('/dashboard'); return; }
+      setChecking(false);
+    })();
+  }, []);
 
   function set(field) {
     return (e) => setForm(f => ({ ...f, [field]: e.target.value }));
@@ -67,6 +76,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return <div className="wrap"><p className="muted" style={{marginTop:60, textAlign:'center'}}>Caricamento…</p></div>;
   }
 
   return (
