@@ -1,10 +1,11 @@
 // FILE: /app/api/notify/match-published/route.js
 // Chiamata dal browser del maestro subito dopo aver pubblicato una
-// partita. Manda l'email SOLO se la partita risulta davvero pubblicata
-// (doppio controllo lato server, non ci fidiamo del solo client).
+// partita. Manda email + notifica push SOLO se la partita risulta
+// davvero pubblicata (doppio controllo lato server).
 
 import { createClient } from '@supabase/supabase-js';
 import { sendMatchPublishedEmail } from '../../../../lib/email';
+import { sendPushToOwner } from '../../../../lib/push';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -32,20 +33,19 @@ export async function POST(request) {
     supabaseAdmin.from('coaches').select('first_name, last_name, academy_name').eq('id', match.coach_id).single(),
   ]);
 
-  if (!athlete?.email) {
-    // Non è un errore: semplicemente l'allievo non ha un'email registrata.
-    return Response.json({ ok: true, skipped: 'nessuna email per questo allievo' });
-  }
+  const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');
+  const matchLabel = match.meta?.data ? `partita del ${match.meta.data}` : 'una nuova partita';
 
-  try {
-    await sendMatchPublishedEmail({
-      toEmail: athlete.email,
-      athleteName: athlete.full_name,
-      coachName: coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' '),
-      matchLabel: match.meta?.data ? `partita del ${match.meta.data}` : null,
-    });
-    return Response.json({ ok: true });
-  } catch (e) {
-    return Response.json({ error: 'Invio email fallito: ' + e.message }, { status: 500 });
-  }
+  const results = await Promise.allSettled([
+    athlete?.email
+      ? sendMatchPublishedEmail({ toEmail: athlete.email, athleteName: athlete.full_name, coachName, matchLabel: `partita del ${match.meta?.data}` })
+      : Promise.resolve('nessuna email'),
+    sendPushToOwner('athlete', match.athlete_id, {
+      title: 'Nuova partita disponibile 🎾',
+      body: `${coachName || 'Il tuo maestro'} ha pubblicato ${matchLabel}.`,
+      url: `/allievo/match/${matchId}`,
+    }),
+  ]);
+
+  return Response.json({ ok: true, email: results[0].status, push: results[1].status });
 }

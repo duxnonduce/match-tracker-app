@@ -199,3 +199,19 @@ create policy "coach manages own goals"
   on athlete_goals for all
   using (coach_id = auth.uid())
   with check (coach_id = auth.uid());
+
+-- ------------------------------------------------------------
+-- TABELLA: push_subscriptions (notifiche push)
+-- ------------------------------------------------------------
+create table push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  owner_type text not null check (owner_type in ('coach','athlete')),
+  owner_id uuid not null,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz default now()
+);
+
+create index idx_push_owner on push_subscriptions(owner_type, owner_id);
+alter table push_subscriptions enable row level security;

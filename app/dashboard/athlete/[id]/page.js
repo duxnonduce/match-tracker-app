@@ -47,6 +47,7 @@ export default function AthleteMatches() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
   const [newPin, setNewPin] = useState(null);
   const [showFiscalCode, setShowFiscalCode] = useState(false);
 
@@ -168,6 +169,11 @@ export default function AthleteMatches() {
         .eq('id', goalId);
       if (error) throw error;
       await loadGoals();
+      fetch('/api/notify/goal-published', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goalId }),
+      }).catch(() => {});
     } catch (err) {
       alert('Errore: ' + err.message);
     } finally {
@@ -206,6 +212,19 @@ export default function AthleteMatches() {
       alert('Errore: ' + err.message);
     } finally {
       setRegenerating(false);
+    }
+  }
+
+  async function handleDeactivate() {
+    if (!confirm(`Disattivare ${athlete.full_name}? Non potrà più accedere col PIN e non conterà più nella tua quota, ma tutto lo storico resta salvato. Puoi riattivarlo in ogni momento.`)) return;
+    setDeactivating(true);
+    try {
+      const { error } = await supabase.from('athletes').update({ active: false }).eq('id', params.id);
+      if (error) throw error;
+      router.push('/dashboard');
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      setDeactivating(false);
     }
   }
 
@@ -258,6 +277,13 @@ export default function AthleteMatches() {
               <button className="btn secondary" style={{marginTop:10}} onClick={()=>setNewPin(null)}>Ho preso nota, nascondi</button>
             </div>
           )}
+        </div>
+
+        <div style={{marginTop:16, paddingTop:16, borderTop:'1px solid var(--line)'}}>
+          <button className="btn danger" onClick={handleDeactivate} disabled={deactivating}>
+            {deactivating ? 'Attendere…' : '⏸ Disattiva allievo'}
+          </button>
+          <p className="field-hint">Libera un posto nel tuo pacchetto e blocca l'accesso col PIN, ma mantiene tutto lo storico. Puoi riattivarlo quando vuoi dalla dashboard.</p>
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { sendTrainingPublishedEmail } from '../../../../lib/email';
+import { sendPushToOwner } from '../../../../lib/push';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -34,19 +35,19 @@ export async function POST(request) {
     supabaseAdmin.from('coaches').select('first_name, last_name, academy_name').eq('id', session.coach_id).single(),
   ]);
 
-  if (!athlete?.email) {
-    return Response.json({ ok: true, skipped: 'nessuna email per questo allievo' });
-  }
+  const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');
+  const shotLabel = SHOT_LABELS[session.shot_type] || session.shot_type;
 
-  try {
-    await sendTrainingPublishedEmail({
-      toEmail: athlete.email,
-      athleteName: athlete.full_name,
-      coachName: coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' '),
-      shotLabel: SHOT_LABELS[session.shot_type] || session.shot_type,
-    });
-    return Response.json({ ok: true });
-  } catch (e) {
-    return Response.json({ error: 'Invio email fallito: ' + e.message }, { status: 500 });
-  }
+  const results = await Promise.allSettled([
+    athlete?.email
+      ? sendTrainingPublishedEmail({ toEmail: athlete.email, athleteName: athlete.full_name, coachName, shotLabel })
+      : Promise.resolve('nessuna email'),
+    sendPushToOwner('athlete', session.athlete_id, {
+      title: 'Nuovo allenamento disponibile 🎯',
+      body: `${coachName || 'Il tuo maestro'} ha pubblicato una sessione di ${shotLabel}.`,
+      url: `/allievo/training/${sessionId}`,
+    }),
+  ]);
+
+  return Response.json({ ok: true, email: results[0].status, push: results[1].status });
 }

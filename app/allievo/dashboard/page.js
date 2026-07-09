@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { enablePushNotifications } from '../../../lib/pushClient';
 
 const SHOT_LABELS = {
   dritto: 'Diritto', rovescio: 'Rovescio', servizio: 'Servizio', volee: 'Volée',
@@ -25,6 +26,7 @@ export default function AthleteDashboard() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pushStatus, setPushStatus] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('athlete_token');
@@ -64,6 +66,16 @@ export default function AthleteDashboard() {
     router.push('/allievo');
   }
 
+  async function handleEnablePush() {
+    setPushStatus('Attivazione…');
+    const token = localStorage.getItem('athlete_token');
+    const result = await enablePushNotifications({
+      endpoint: '/api/push/subscribe-athlete',
+      authHeader: `Bearer ${token}`,
+    });
+    setPushStatus(result.ok ? '✅ Notifiche attive' : `⚠️ ${result.reason}`);
+  }
+
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
   return (
@@ -78,6 +90,13 @@ export default function AthleteDashboard() {
         </div>
         <button className="btn secondary" onClick={handleLogout}>Esci</button>
       </div>
+
+      {pushStatus && <p className="muted" style={{marginTop:-10, marginBottom:14, fontSize:12.5}}>{pushStatus}</p>}
+      {!pushStatus && (
+        <button className="btn secondary block" style={{marginTop:-10, marginBottom:14}} onClick={handleEnablePush}>
+          🔔 Attiva notifiche (nuove partite, obiettivi...)
+        </button>
+      )}
 
       <div className="card">
         <h2 style={{fontSize:17}}>🎯 I tuoi obiettivi</h2>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import { validateCodiceFiscale } from '../../lib/codiceFiscale';
 import ConfirmDialog from '../../lib/ConfirmDialog';
+import { enablePushNotifications } from '../../lib/pushClient';
 
 const PLANS = [
   { id: 'basic20', label: 'Base', quota: 20, icon: '🌱', tagline: 'per iniziare' },
@@ -54,6 +55,10 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [portalBusy, setPortalBusy] = useState(false);
   const [athleteSearch, setAthleteSearch] = useState('');
+  const [pushStatus, setPushStatus] = useState('');
+  const [inactiveAthletes, setInactiveAthletes] = useState([]);
+  const [showInactive, setShowInactive] = useState(false);
+  const [reactivating, setReactivating] = useState(null);
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -92,6 +97,14 @@ export default function Dashboard() {
         .eq('active', true)
         .order('created_at', { ascending: false });
       setAthletes(athleteRows || []);
+
+      const { data: inactiveRows } = await supabase
+        .from('athletes')
+        .select('id, full_name')
+        .eq('coach_id', coachId)
+        .eq('active', false)
+        .order('created_at', { ascending: false });
+      setInactiveAthletes(inactiveRows || []);
     }
   }
 
@@ -235,6 +248,32 @@ export default function Dashboard() {
     router.push('/login');
   }
 
+  async function handleReactivateAthlete(athleteId) {
+    if (coach.athlete_quota && athletes.length >= coach.athlete_quota) {
+      alert(`Hai già raggiunto il limite di ${coach.athlete_quota} allievi del tuo pacchetto. Fai upgrade o disattivane un altro prima di riattivare questo.`);
+      return;
+    }
+    setReactivating(athleteId);
+    try {
+      const { error } = await supabase.from('athletes').update({ active: true }).eq('id', athleteId);
+      if (error) throw error;
+      await loadData(session.user.id);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setReactivating(null);
+    }
+  }
+
+  async function handleEnablePush() {
+    setPushStatus('Attivazione…');
+    const result = await enablePushNotifications({
+      endpoint: '/api/push/subscribe-coach',
+      extraBody: { coachId: session.user.id },
+    });
+    setPushStatus(result.ok ? '✅ Notifiche attive' : `⚠️ ${result.reason}`);
+  }
+
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
   const usagePct = coach && coach.athlete_quota ? Math.min(100, Math.round(100 * athletes.length / coach.athlete_quota)) : 0;
@@ -258,6 +297,13 @@ export default function Dashboard() {
         </div>
         <button className="btn secondary" onClick={handleLogout}>Esci</button>
       </div>
+
+      {pushStatus && <p className="muted" style={{marginTop:-10, marginBottom:14, fontSize:12.5}}>{pushStatus}</p>}
+      {!pushStatus && (
+        <button className="btn secondary block" style={{marginTop:-10, marginBottom:14}} onClick={handleEnablePush}>
+          🔔 Attiva notifiche (bozze da pubblicare, abbonamento...)
+        </button>
+      )}
 
       {coach && coach.subscription_status !== 'active' && !showPlanSwitch ? (
         <div className="card">
@@ -444,6 +490,22 @@ export default function Dashboard() {
               </Link>
             ))}
           </div>
+
+          {inactiveAthletes.length > 0 && (
+            <div className="card">
+              <a style={{cursor:'pointer', fontSize:14}} onClick={()=>setShowInactive(s=>!s)}>
+                {showInactive ? '▾' : '▸'} Allievi disattivati ({inactiveAthletes.length})
+              </a>
+              {showInactive && inactiveAthletes.map(a => (
+                <div key={a.id} className="list-item">
+                  <div className="li-text"><div className="li-title" style={{color:'var(--muted)'}}>{a.full_name}</div></div>
+                  <button className="btn secondary" style={{padding:'8px 12px', fontSize:12.5}} disabled={reactivating===a.id} onClick={()=>handleReactivateAthlete(a.id)}>
+                    {reactivating===a.id ? 'Attendere…' : '↩ Riattiva'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
