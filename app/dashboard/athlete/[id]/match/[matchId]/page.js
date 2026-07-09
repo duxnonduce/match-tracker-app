@@ -132,6 +132,12 @@ export default function CoachMatchDetail() {
           </div>
 
           <div className="card">
+            <h2 style={{fontSize:16}}>📋 Timeline della partita</h2>
+            <p className="muted" style={{marginBottom:12}}>Controlla ogni episodio registrato e correggi eventuali errori di battitura.</p>
+            <Link href={`/dashboard/athlete/${params.id}/match/${params.matchId}/timeline`} className="btn secondary">Apri timeline →</Link>
+          </div>
+
+          <div className="card">
             <h2 style={{fontSize:16, color:'var(--danger)'}}>⚠️ Zona pericolosa</h2>
             <p className="muted" style={{marginBottom:12}}>Eliminare questa partita è definitivo: non potrai recuperarla, e sparirà anche dall'elenco dell'allievo.</p>
             <button className="btn danger" onClick={()=>setDeleteStep(1)}>🗑 Elimina partita</button>
