@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../../../../lib/supabaseClient';
+import { aggregateShotPerformance } from '../../../../lib/matchEngine';
 
 const SHOT_LABELS = {
   dritto: 'Diritto', rovescio: 'Rovescio', servizio: 'Servizio', volee: 'Volée',
@@ -41,6 +42,9 @@ export default function AthleteMatches() {
   const [goalBusy, setGoalBusy] = useState(false);
   const [goalError, setGoalError] = useState('');
   const [showAchievedGoals, setShowAchievedGoals] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ level: '', category: '', strengths: '', weaknesses: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
   const [newPin, setNewPin] = useState(null);
@@ -54,10 +58,18 @@ export default function AthleteMatches() {
 
       const { data: athleteRow } = await supabase.from('athletes').select('*').eq('id', params.id).single();
       setAthlete(athleteRow);
+      if (athleteRow) {
+        setProfileForm({
+          level: athleteRow.level || '',
+          category: athleteRow.category || '',
+          strengths: athleteRow.strengths || '',
+          weaknesses: athleteRow.weaknesses || '',
+        });
+      }
 
       const [{ data: matchRows }, { data: trainingRows }, { data: goalRows }] = await Promise.all([
         supabase.from('matches')
-          .select('id, meta, match, published_to_athlete, coach_rating, created_at')
+          .select('id, meta, match, stats, published_to_athlete, coach_rating, created_at')
           .eq('athlete_id', params.id)
           .order('created_at', { ascending: false }),
         supabase.from('training_sessions')
@@ -86,6 +98,27 @@ export default function AthleteMatches() {
 
   const activeGoals = goals.filter(g => g.status === 'in_corso');
   const achievedGoals = goals.filter(g => g.status === 'raggiunto');
+
+  async function handleSaveProfile(e) {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const { error } = await supabase.from('athletes').update(profileForm).eq('id', params.id);
+      if (error) throw error;
+      setAthlete(a => ({ ...a, ...profileForm }));
+      setEditingProfile(false);
+    } catch (err) {
+      alert('Errore: ' + err.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  // ---- Storico progressi: calcolato dalle partite già caricate ----
+  const ratedMatches = matches.filter(m => m.coach_rating != null).slice().reverse(); // ordine cronologico
+  const avgRating = ratedMatches.length ? (ratedMatches.reduce((s, m) => s + m.coach_rating, 0) / ratedMatches.length) : null;
+  const shotAggregate = matches.length ? aggregateShotPerformance(matches.map(m => m.stats)) : null;
+  const recentForSparkline = ratedMatches.slice(-10);
 
   async function handleAddGoal(e) {
     e.preventDefault();
@@ -226,6 +259,82 @@ export default function AthleteMatches() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="card">
+        <div className="row" style={{marginBottom: editingProfile ? 14 : 0}}>
+          <h2 style={{fontSize:17}}>📋 Scheda tecnica</h2>
+          {!editingProfile && <button className="btn secondary" onClick={()=>setEditingProfile(true)}>Modifica</button>}
+        </div>
+
+        {editingProfile ? (
+          <form onSubmit={handleSaveProfile}>
+            <div className="field-row2">
+              <div className="field">
+                <label>Livello</label>
+                <select value={profileForm.level} onChange={e=>setProfileForm(f=>({...f, level:e.target.value}))}>
+                  <option value="">—</option>
+                  <option value="Principiante">Principiante</option>
+                  <option value="Intermedio">Intermedio</option>
+                  <option value="Avanzato">Avanzato</option>
+                  <option value="Agonista">Agonista</option>
+                </select>
+              </div>
+              <div className="field"><label>Categoria</label><input value={profileForm.category} onChange={e=>setProfileForm(f=>({...f, category:e.target.value}))} placeholder="Es. Under 12" /></div>
+            </div>
+            <div className="field"><label>Punti forti</label><textarea className="textarea" rows={2} value={profileForm.strengths} onChange={e=>setProfileForm(f=>({...f, strengths:e.target.value}))} /></div>
+            <div className="field"><label>Punti deboli</label><textarea className="textarea" rows={2} value={profileForm.weaknesses} onChange={e=>setProfileForm(f=>({...f, weaknesses:e.target.value}))} /></div>
+            <div className="row" style={{gap:8}}>
+              <button className="btn secondary" type="button" style={{flex:1}} onClick={()=>setEditingProfile(false)}>Annulla</button>
+              <button className="btn" type="submit" style={{flex:1}} disabled={savingProfile}>{savingProfile ? 'Salvataggio…' : 'Salva'}</button>
+            </div>
+          </form>
+        ) : (
+          <div className="stat-mini-grid" style={{marginTop:12}}>
+            <div className="stat-mini"><div className="v" style={{fontSize:14}}>{athlete?.dominant_hand === 'sinistra' ? 'Mancino' : athlete?.dominant_hand === 'destra' ? 'Destro' : '—'}</div><div className="l">Mano</div></div>
+            <div className="stat-mini"><div className="v" style={{fontSize:14}}>{athlete?.level || '—'}</div><div className="l">Livello</div></div>
+            <div className="stat-mini"><div className="v" style={{fontSize:14}}>{athlete?.category || '—'}</div><div className="l">Categoria</div></div>
+            {athlete?.strengths && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.strengths}</div><div className="l">Punti forti</div></div>}
+            {athlete?.weaknesses && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.weaknesses}</div><div className="l">Punti deboli</div></div>}
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h2 style={{fontSize:17}}>📈 Storico progressi</h2>
+        {matches.length === 0 ? (
+          <p className="muted" style={{marginTop:8}}>Nessuna partita ancora — i progressi compariranno qui.</p>
+        ) : (
+          <>
+            <div className="stat-mini-grid" style={{marginTop:12}}>
+              <div className="stat-mini"><div className="v">{matches.length}</div><div className="l">Partite giocate</div></div>
+              <div className="stat-mini"><div className="v">{avgRating != null ? avgRating.toFixed(1) : '—'}</div><div className="l">Media voto</div></div>
+              <div className="stat-mini"><div className="v" style={{fontSize:14, color:'var(--ok)'}}>{shotAggregate?.best?.net > 0 ? shotAggregate.best.label : '—'}</div><div className="l">Colpo migliore</div></div>
+              <div className="stat-mini"><div className="v" style={{fontSize:14, color:'var(--danger)'}}>{shotAggregate?.worst?.net < 0 ? shotAggregate.worst.label : '—'}</div><div className="l">Colpo da migliorare</div></div>
+            </div>
+
+            {recentForSparkline.length >= 2 && (
+              <div style={{marginTop:18}}>
+                <div className="muted" style={{fontSize:12, marginBottom:6}}>Andamento voto — ultime {recentForSparkline.length} partite valutate</div>
+                <svg viewBox="0 0 300 60" style={{width:'100%', height:60}} preserveAspectRatio="none">
+                  <polyline
+                    fill="none" stroke="var(--accent)" strokeWidth="2"
+                    points={recentForSparkline.map((m, i) => {
+                      const x = (i / (recentForSparkline.length - 1)) * 300;
+                      const y = 55 - ((m.coach_rating - 1) / 9) * 50;
+                      return `${x},${y}`;
+                    }).join(' ')}
+                  />
+                  {recentForSparkline.map((m, i) => {
+                    const x = (i / (recentForSparkline.length - 1)) * 300;
+                    const y = 55 - ((m.coach_rating - 1) / 9) * 50;
+                    return <circle key={i} cx={x} cy={y} r="3" fill="var(--accent)" />;
+                  })}
+                </svg>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="card">

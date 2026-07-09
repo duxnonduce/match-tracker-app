@@ -69,6 +69,10 @@ create table athletes (
   email text,
   notes text,
   dominant_hand text, -- 'destra' | 'sinistra'
+  level text,        -- es. 'Principiante' | 'Intermedio' | 'Avanzato' | 'Agonista'
+  category text,     -- es. 'Under 12', libero
+  strengths text,    -- punti forti
+  weaknesses text,   -- punti deboli
   fiscal_code text,
   parental_consent_confirmed_at timestamptz,
   pin_hash text not null,          -- hash bcrypt del PIN, MAI il PIN in chiaro
