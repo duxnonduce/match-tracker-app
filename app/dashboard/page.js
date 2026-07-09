@@ -52,6 +52,8 @@ export default function Dashboard() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [showPlanSwitch, setShowPlanSwitch] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [athleteSearch, setAthleteSearch] = useState('');
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -154,6 +156,23 @@ export default function Dashboard() {
     }
   }
 
+  async function handleOpenPortal() {
+    setPortalBusy(true);
+    try {
+      const res = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coachId: session.user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore');
+      window.location.href = data.url;
+    } catch (err) {
+      alert('Errore: ' + err.message);
+      setPortalBusy(false);
+    }
+  }
+
   async function handleSyncSubscription() {
     setSyncing(true);
     try {
@@ -219,6 +238,9 @@ export default function Dashboard() {
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
   const usagePct = coach && coach.athlete_quota ? Math.min(100, Math.round(100 * athletes.length / coach.athlete_quota)) : 0;
+  const filteredAthletes = athleteSearch.trim()
+    ? athletes.filter(a => a.full_name.toLowerCase().includes(athleteSearch.trim().toLowerCase()))
+    : athletes;
   const statusInfo = coach ? (STATUS_LABELS[coach.subscription_status] || STATUS_LABELS.inactive) : STATUS_LABELS.inactive;
   const coachDisplayName = coach?.first_name ? `${coach.first_name} ${coach.last_name || ''}`.trim() : (coach?.email || '');
   const currentPlan = PLANS.find(p => p.id === coach?.plan_tier);
@@ -296,6 +318,9 @@ export default function Dashboard() {
             <div className="row" style={{gap:8, marginTop:16}}>
               <button className="btn secondary" style={{flex:1}} disabled={billingBusy} onClick={()=>setShowPlanSwitch(s=>!s)}>
                 {showPlanSwitch ? 'Chiudi' : '🔁 Cambia pacchetto'}
+              </button>
+              <button className="btn secondary" style={{flex:1}} disabled={portalBusy} onClick={handleOpenPortal}>
+                {portalBusy ? 'Apertura…' : '📄 Fatture e pagamento'}
               </button>
               {coach.cancel_at_period_end ? (
                 <button className="btn secondary" style={{flex:1}} disabled={billingBusy} onClick={handleReactivate}>↩ Riattiva</button>
@@ -395,9 +420,18 @@ export default function Dashboard() {
           </div>
 
           <div className="card">
-            <h2 style={{fontSize:17}}>👥 I tuoi allievi</h2>
+            <h2 style={{fontSize:17}}>👥 I tuoi allievi <span className="muted" style={{fontSize:13, fontWeight:400}}>({athletes.length})</span></h2>
+            {athletes.length > 5 && (
+              <input
+                value={athleteSearch}
+                onChange={e=>setAthleteSearch(e.target.value)}
+                placeholder="🔍 Cerca per nome..."
+                style={{width:'100%', padding:'11px 14px', borderRadius:10, border:'1px solid var(--line)', background:'var(--surface2)', color:'var(--text)', fontSize:14, marginTop:10, marginBottom:6}}
+              />
+            )}
             {athletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo ancora — aggiungine uno qui sopra.</p>}
-            {athletes.map(a => (
+            {athletes.length > 0 && filteredAthletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo trovato per "{athleteSearch}".</p>}
+            {filteredAthletes.map(a => (
               <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
                 <div className="li-main">
                   <div className="avatar">{initials(a.full_name)}</div>
