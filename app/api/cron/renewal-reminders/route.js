@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro: 'Pro' };
+const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro50: 'Pro', oro: 'Oro' };
 const REMINDER_WINDOW_DAYS = 3;
 
 function formatDateIt(iso) {

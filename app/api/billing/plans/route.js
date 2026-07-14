@@ -9,7 +9,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const PRICE_IDS = {
   base10: process.env.STRIPE_PRICE_BASE10,
   plus30: process.env.STRIPE_PRICE_PLUS30,
-  pro: process.env.STRIPE_PRICE_PRO,
+  pro50: process.env.STRIPE_PRICE_PRO50,
+  oro: process.env.STRIPE_PRICE_ORO,
 };
 
 function formatAmount(cents, currency) {

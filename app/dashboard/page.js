@@ -10,9 +10,10 @@ import { enablePushNotifications, checkPushEnabled } from '../../lib/pushClient'
 const PLANS = [
   { id: 'base10', label: 'Base', quota: 10, icon: '🌱', tagline: 'per iniziare' },
   { id: 'plus30', label: 'Plus', quota: 30, icon: '🚀', tagline: 'più richiesto', featured: true },
-  { id: 'pro', label: 'Pro', quota: null, icon: '🏆', tagline: 'partite illimitate' },
+  { id: 'pro50', label: 'Pro', quota: 50, icon: '🏆', tagline: 'per chi lavora sul serio' },
+  { id: 'oro', label: 'Oro', quota: null, icon: '👑', tagline: 'partite illimitate' },
 ];
-function quotaText(quota) { return quota == null ? 'partite illimitate' : `fino a ${quota} partite`; }
+function quotaText(quota) { return quota == null ? 'partite illimitate' : `fino a ${quota} partite/mese`; }
 function effectiveQuota(quota) { return quota == null ? Infinity : quota; }
 
 const EMPTY_ATHLETE = { firstName: '', lastName: '', birthDate: '', phone: '', email: '', notes: '', dominantHand: '', fiscalCode: '', parentalConsent: false };
@@ -110,10 +111,9 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
       setInactiveAthletes(inactiveRows || []);
 
-      const { count: matchCountResult } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('coach_id', coachId);
+      let matchCountQuery = supabase.from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
+      if (coachRow.current_period_start) matchCountQuery = matchCountQuery.gte('created_at', coachRow.current_period_start);
+      const { count: matchCountResult } = await matchCountQuery;
       setMatchCount(matchCountResult || 0);
     }
   }
@@ -345,7 +345,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div style={{textAlign:'right'}}>
-                <div className="muted">Partite registrate</div>
+                <div className="muted">Partite questo mese</div>
                 <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2, color:'var(--accent)'}}>
                   {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ' (illimitate)'}
                 </div>
@@ -360,16 +360,16 @@ export default function Dashboard() {
               <p className="error" style={{marginTop:10, marginBottom:0}}>Hai raggiunto il limite di partite del tuo pacchetto. Fai upgrade per registrarne altre.</p>
             )}
 
-            {coach.current_period_end ? (
+            {(coach.current_period_end && coach.current_period_start) ? (
               <p className="muted" style={{marginTop:12, marginBottom:0}}>
                 {coach.cancel_at_period_end
                   ? <>⚠️ Annullamento programmato: accesso attivo fino al <b style={{color:'var(--text)'}}>{formatDate(coach.current_period_end)}</b>, poi non verrà rinnovato.</>
-                  : <>Rinnovo automatico il <b style={{color:'var(--text)'}}>{formatDate(coach.current_period_end)}</b>.</>
+                  : <>Rinnovo automatico il <b style={{color:'var(--text)'}}>{formatDate(coach.current_period_end)}</b>. Le partite di questo mese si azzerano da lì.</>
                 }
               </p>
             ) : (
               <p className="muted" style={{marginTop:12, marginBottom:0}}>
-                Data di rinnovo non disponibile.{' '}
+                Dati di fatturazione da aggiornare (serve per calcolare correttamente il limite mensile).{' '}
                 <a style={{cursor:'pointer'}} onClick={handleSyncSubscription}>{syncing ? 'Sincronizzazione…' : 'Sincronizza con Stripe'}</a>
               </p>
             )}

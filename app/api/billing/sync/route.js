@@ -18,6 +18,10 @@ function getPeriodEnd(sub) {
   const fromItem = sub.items?.data?.[0]?.current_period_end;
   return fromItem ?? sub.current_period_end ?? null;
 }
+function getPeriodStart(sub) {
+  const fromItem = sub.items?.data?.[0]?.current_period_start;
+  return fromItem ?? sub.current_period_start ?? null;
+}
 
 export async function POST(request) {
   const { coachId } = await request.json();
@@ -35,10 +39,12 @@ export async function POST(request) {
   try {
     const sub = await stripe.subscriptions.retrieve(coach.stripe_subscription_id, { expand: ['items'] });
     const periodEndUnix = getPeriodEnd(sub);
+    const periodStartUnix = getPeriodStart(sub);
 
     await supabaseAdmin.from('coaches').update({
       subscription_status: sub.status,
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
+      current_period_start: periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null,
       cancel_at_period_end: !!sub.cancel_at_period_end,
     }).eq('id', coachId);
 

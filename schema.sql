@@ -27,6 +27,7 @@ create table coaches (
   match_quota int,                          -- NULL = illimitato; altrimenti tetto di partite registrabili
   subscription_status text default 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
   current_period_end timestamptz,
+  current_period_start timestamptz,
   cancel_at_period_end boolean default false,
   renewal_reminder_sent_at timestamptz,
   terms_accepted_at timestamptz,
@@ -218,21 +219,29 @@ create index idx_push_owner on push_subscriptions(owner_type, owner_id);
 alter table push_subscriptions enable row level security;
 
 -- ------------------------------------------------------------
--- Blocca l'inserimento di nuove partite oltre il limite del piano
--- (match_quota = NULL vuol dire illimitato). Vedi migration-11.sql per
--- la spiegazione completa.
+-- Blocca l'inserimento di nuove partite oltre il limite del piano PER IL
+-- MESE CORRENTE (match_quota = NULL vuol dire illimitato). Il conteggio
+-- riparte da zero ad ogni rinnovo dell'abbonamento (current_period_start).
 -- ------------------------------------------------------------
 create or replace function check_match_quota()
 returns trigger as $$
 declare
   quota int;
+  period_start timestamptz;
   current_count int;
 begin
-  select match_quota into quota from coaches where id = new.coach_id;
+  select match_quota, current_period_start into quota, period_start
+  from coaches where id = new.coach_id;
+
   if quota is not null then
-    select count(*) into current_count from matches where coach_id = new.coach_id;
+    if period_start is null then
+      current_count := 0;
+    else
+      select count(*) into current_count from matches
+      where coach_id = new.coach_id and created_at >= period_start;
+    end if;
     if current_count >= quota then
-      raise exception 'MATCH_QUOTA_EXCEEDED: limite di % partite del tuo pacchetto raggiunto', quota;
+      raise exception 'MATCH_QUOTA_EXCEEDED: limite di % partite del tuo pacchetto raggiunto per questo mese', quota;
     end if;
   end if;
   return new;

@@ -15,21 +15,26 @@ const supabaseAdmin = createClient(
 const PRICE_IDS = {
   base10: process.env.STRIPE_PRICE_BASE10,
   plus30: process.env.STRIPE_PRICE_PLUS30,
-  pro: process.env.STRIPE_PRICE_PRO,
+  pro50: process.env.STRIPE_PRICE_PRO50,
+  oro: process.env.STRIPE_PRICE_ORO,
 };
-// null = partite illimitate (piano Pro)
-const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro: null };
+// null = partite illimitate (piano Oro)
+const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro50: 50, oro: null };
 
 function effectiveQuota(plan) {
   const q = MATCH_QUOTA_BY_PLAN[plan];
   return q == null ? Infinity : q;
 }
 
-// Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
-// abbonamento al livello della singola voce (item) dell'abbonamento.
+// Da marzo 2025 Stripe ha spostato "current_period_end"/"current_period_start"
+// dal livello abbonamento al livello della singola voce (item).
 function getPeriodEnd(sub) {
   const fromItem = sub.items?.data?.[0]?.current_period_end;
   return fromItem ?? sub.current_period_end ?? null;
+}
+function getPeriodStart(sub) {
+  const fromItem = sub.items?.data?.[0]?.current_period_start;
+  return fromItem ?? sub.current_period_start ?? null;
 }
 
 export async function POST(request) {
@@ -42,7 +47,7 @@ export async function POST(request) {
 
   const { data: coach, error: coachErr } = await supabaseAdmin
     .from('coaches')
-    .select('stripe_subscription_id, plan_tier')
+    .select('stripe_subscription_id, plan_tier, current_period_start')
     .eq('id', coachId)
     .single();
 
@@ -55,16 +60,15 @@ export async function POST(request) {
   }
 
   // Se stai facendo un downgrade, controlliamo che le partite già
-  // registrate non superino la nuova quota, altrimenti resteresti
-  // bloccato subito senza poterne registrare altre.
+  // registrate NEL MESE CORRENTE non superino la nuova quota, altrimenti
+  // resteresti bloccato subito senza poterne registrare altre.
   if (effectiveQuota(newPlan) < effectiveQuota(coach.plan_tier)) {
-    const { count } = await supabaseAdmin
-      .from('matches')
-      .select('*', { count: 'exact', head: true })
-      .eq('coach_id', coachId);
+    let query = supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
+    if (coach.current_period_start) query = query.gte('created_at', coach.current_period_start);
+    const { count } = await query;
     if (count > MATCH_QUOTA_BY_PLAN[newPlan]) {
       return Response.json(
-        { error: `Hai già ${count} partite registrate: il pacchetto "${newPlan}" ne permette solo ${MATCH_QUOTA_BY_PLAN[newPlan]}. Non puoi scendere a questo pacchetto (le partite già registrate restano comunque visibili).` },
+        { error: `Hai già ${count} partite registrate questo mese: il pacchetto "${newPlan}" ne permette solo ${MATCH_QUOTA_BY_PLAN[newPlan]}. Non puoi scendere a questo pacchetto ora (riprova dal prossimo rinnovo).` },
         { status: 400 }
       );
     }
@@ -82,6 +86,7 @@ export async function POST(request) {
     });
 
     const periodEndUnix = getPeriodEnd(updated);
+    const periodStartUnix = getPeriodStart(updated);
 
     // Aggiorniamo subito anche noi (il webhook arriverà comunque a
     // confermare, ma così l'interfaccia si aggiorna all'istante).
@@ -90,6 +95,7 @@ export async function POST(request) {
       match_quota: MATCH_QUOTA_BY_PLAN[newPlan],
       subscription_status: updated.status,
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
+      current_period_start: periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null,
     }).eq('id', coachId);
 
     return Response.json({ ok: true, plan: newPlan });

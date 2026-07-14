@@ -14,17 +14,21 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// null = partite illimitate (piano Pro)
-const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro: null };
-const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro: 'Pro' };
+// null = partite illimitate (piano Oro)
+const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro50: 50, oro: null };
+const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro50: 'Pro', oro: 'Oro' };
 
-// Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
-// abbonamento al livello della singola voce (item) dell'abbonamento.
-// Questo helper legge dal posto giusto, con un fallback al vecchio
-// campo nel caso il tuo account usi ancora una versione API precedente.
+// Da marzo 2025 Stripe ha spostato "current_period_end"/"current_period_start"
+// dal livello abbonamento al livello della singola voce (item). Questi
+// helper leggono dal posto giusto, con un fallback al vecchio campo nel
+// caso il tuo account usi ancora una versione API precedente.
 function getPeriodEnd(sub) {
   const fromItem = sub.items?.data?.[0]?.current_period_end;
   return fromItem ?? sub.current_period_end ?? null;
+}
+function getPeriodStart(sub) {
+  const fromItem = sub.items?.data?.[0]?.current_period_start;
+  return fromItem ?? sub.current_period_start ?? null;
 }
 
 function formatDateIt(iso) {
@@ -52,12 +56,15 @@ export async function POST(request) {
       const session = event.data.object;
       const { coachId, plan } = session.metadata;
 
-      // Recuperiamo la sottoscrizione per sapere la data di rinnovo da mettere nell'email.
-      let periodEndIso = null;
+      // Recuperiamo la sottoscrizione per sapere inizio/fine periodo da
+      // mettere nell'email e da usare per il conteggio mensile delle partite.
+      let periodEndIso = null, periodStartIso = null;
       try {
         const sub = await stripe.subscriptions.retrieve(session.subscription, { expand: ['items'] });
         const periodEndUnix = getPeriodEnd(sub);
+        const periodStartUnix = getPeriodStart(sub);
         periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+        periodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
       } catch (e) { /* non bloccante: mandiamo comunque l'email senza data se fallisce */ }
 
       await supabaseAdmin.from('coaches').update({
@@ -67,6 +74,7 @@ export async function POST(request) {
         match_quota: MATCH_QUOTA_BY_PLAN[plan] ?? null,
         subscription_status: 'active',
         current_period_end: periodEndIso,
+        current_period_start: periodStartIso,
         renewal_reminder_sent_at: null, // reset: nuovo ciclo, nuovo eventuale promemoria
       }).eq('id', coachId);
 
@@ -90,12 +98,16 @@ export async function POST(request) {
     // Copre sia i rinnovi automatici, sia i cambi di piano fatti dal
     // maestro (upgrade/downgrade), sia i pagamenti falliti (status
     // diventa 'past_due' — il maestro e i suoi allievi restano bloccati
-    // finché non torna 'active').
+    // finché non torna 'active'). È QUI che, ad ogni rinnovo mensile,
+    // current_period_start si aggiorna e il conteggio delle partite
+    // riparte automaticamente da zero.
     case 'customer.subscription.updated': {
       const sub = event.data.object;
       const plan = sub.metadata?.plan;
       const periodEndUnix = getPeriodEnd(sub);
+      const periodStartUnix = getPeriodStart(sub);
       const newPeriodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
+      const newPeriodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
 
       const { data: existing } = await supabaseAdmin
         .from('coaches').select('current_period_end').eq('stripe_subscription_id', sub.id).single();
@@ -104,10 +116,11 @@ export async function POST(request) {
       const update = {
         subscription_status: sub.status, // 'active' | 'past_due' | 'canceled' | 'unpaid' | ...
         current_period_end: newPeriodEndIso,
+        current_period_start: newPeriodStartIso,
         cancel_at_period_end: !!sub.cancel_at_period_end,
       };
-      // NB: usiamo "plan in MATCH_QUOTA_BY_PLAN" e non "MATCH_QUOTA_BY_PLAN[plan]"
-      // perché il piano Pro ha quota null, che sarebbe falsy in un if diretto.
+      // NB: usiamo "hasOwnProperty" e non "MATCH_QUOTA_BY_PLAN[plan]" nell'if
+      // perché il piano Oro ha quota null, che sarebbe falsy in un if diretto.
       if (plan && Object.prototype.hasOwnProperty.call(MATCH_QUOTA_BY_PLAN, plan)) {
         update.plan_tier = plan;
         update.match_quota = MATCH_QUOTA_BY_PLAN[plan];
