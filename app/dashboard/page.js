@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
 import { validateCodiceFiscale } from '../../lib/codiceFiscale';
 import ConfirmDialog from '../../lib/ConfirmDialog';
-import { enablePushNotifications } from '../../lib/pushClient';
+import { enablePushNotifications, checkPushEnabled } from '../../lib/pushClient';
 
 const PLANS = [
-  { id: 'basic20', label: 'Base', quota: 20, icon: '🌱', tagline: 'per iniziare' },
-  { id: 'plus50', label: 'Plus', quota: 50, icon: '🚀', tagline: 'più richiesto', featured: true },
-  { id: 'pro100', label: 'Pro', quota: 100, icon: '🏆', tagline: 'accademie grandi' },
+  { id: 'base10', label: 'Base', quota: 10, icon: '🌱', tagline: 'per iniziare' },
+  { id: 'plus30', label: 'Plus', quota: 30, icon: '🚀', tagline: 'più richiesto', featured: true },
+  { id: 'pro', label: 'Pro', quota: null, icon: '🏆', tagline: 'partite illimitate' },
 ];
+function quotaText(quota) { return quota == null ? 'partite illimitate' : `fino a ${quota} partite`; }
+function effectiveQuota(quota) { return quota == null ? Infinity : quota; }
 
 const EMPTY_ATHLETE = { firstName: '', lastName: '', birthDate: '', phone: '', email: '', notes: '', dominantHand: '', fiscalCode: '', parentalConsent: false };
 
@@ -59,6 +61,7 @@ export default function Dashboard() {
   const [inactiveAthletes, setInactiveAthletes] = useState([]);
   const [showInactive, setShowInactive] = useState(false);
   const [reactivating, setReactivating] = useState(null);
+  const [matchCount, setMatchCount] = useState(0);
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -75,6 +78,7 @@ export default function Dashboard() {
       await loadData(session.user.id);
       setLoading(false);
       fetch('/api/billing/plans').then(r => r.json()).then(d => setPlanPrices(d.plans || {})).catch(() => {});
+      checkPushEnabled().then(enabled => { if (enabled) setPushStatus('✅ Notifiche attive'); });
     })();
   }, []);
 
@@ -105,6 +109,12 @@ export default function Dashboard() {
         .eq('active', false)
         .order('created_at', { ascending: false });
       setInactiveAthletes(inactiveRows || []);
+
+      const { count: matchCountResult } = await supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('coach_id', coachId);
+      setMatchCount(matchCountResult || 0);
     }
   }
 
@@ -249,10 +259,6 @@ export default function Dashboard() {
   }
 
   async function handleReactivateAthlete(athleteId) {
-    if (coach.athlete_quota && athletes.length >= coach.athlete_quota) {
-      alert(`Hai già raggiunto il limite di ${coach.athlete_quota} allievi del tuo pacchetto. Fai upgrade o disattivane un altro prima di riattivare questo.`);
-      return;
-    }
     setReactivating(athleteId);
     try {
       const { error } = await supabase.from('athletes').update({ active: true }).eq('id', athleteId);
@@ -276,7 +282,7 @@ export default function Dashboard() {
 
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
-  const usagePct = coach && coach.athlete_quota ? Math.min(100, Math.round(100 * athletes.length / coach.athlete_quota)) : 0;
+  const usagePct = coach && coach.match_quota ? Math.min(100, Math.round(100 * matchCount / coach.match_quota)) : 0;
   const filteredAthletes = athleteSearch.trim()
     ? athletes.filter(a => a.full_name.toLowerCase().includes(athleteSearch.trim().toLowerCase()))
     : athletes;
@@ -311,14 +317,14 @@ export default function Dashboard() {
           {coach.subscription_status !== 'inactive' && (
             <p className="error" style={{marginTop:4}}>Stato: {statusInfo.label}. Tu e i tuoi allievi siete bloccati finché non risolvi il pagamento o scegli un nuovo pacchetto.</p>
           )}
-          <p className="muted">Il pacchetto determina quanti allievi puoi registrare contemporaneamente.</p>
+          <p className="muted">Il pacchetto determina quante partite puoi registrare in totale (nessun limite sul numero di allievi).</p>
           <div className="plan-grid">
             {PLANS.map(p => (
               <div key={p.id} className={'plan-card' + (p.featured ? ' featured' : '')}>
                 {p.featured && <div className="ribbon">TOP</div>}
                 <div className="icon">{p.icon}</div>
                 <h3>{p.label}</h3>
-                <div className="price">fino a {p.quota} allievi</div>
+                <div className="price">{quotaText(p.quota)}</div>
                 {planPrices && <div style={{fontFamily:'Oswald', fontSize:16, marginBottom:4}}>{priceLabel(planPrices, p.id)}</div>}
                 <p className="muted" style={{fontSize:12, marginBottom:14}}>{p.tagline}</p>
                 <button className="btn block" onClick={()=>handleBuyPlan(p.id)}>Acquista</button>
@@ -339,13 +345,20 @@ export default function Dashboard() {
                 </div>
               </div>
               <div style={{textAlign:'right'}}>
-                <div className="muted">Allievi</div>
-                <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2, color:'var(--accent)'}}>{athletes.length}/{coach.athlete_quota}</div>
+                <div className="muted">Partite registrate</div>
+                <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2, color:'var(--accent)'}}>
+                  {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ' (illimitate)'}
+                </div>
               </div>
             </div>
-            <div style={{background:'var(--surface2)', borderRadius:20, height:8, marginTop:14, overflow:'hidden'}}>
-              <div style={{width:usagePct+'%', height:'100%', background:'var(--accent)', borderRadius:20, transition:'width .3s'}}></div>
-            </div>
+            {coach.match_quota != null && (
+              <div style={{background:'var(--surface2)', borderRadius:20, height:8, marginTop:14, overflow:'hidden'}}>
+                <div style={{width:usagePct+'%', height:'100%', background: usagePct>=100 ? 'var(--danger)' : 'var(--accent)', borderRadius:20, transition:'width .3s'}}></div>
+              </div>
+            )}
+            {coach.match_quota != null && matchCount >= coach.match_quota && (
+              <p className="error" style={{marginTop:10, marginBottom:0}}>Hai raggiunto il limite di partite del tuo pacchetto. Fai upgrade per registrarne altre.</p>
+            )}
 
             {coach.current_period_end ? (
               <p className="muted" style={{marginTop:12, marginBottom:0}}>
@@ -381,10 +394,10 @@ export default function Dashboard() {
                   <div key={p.id} className="plan-card">
                     <div className="icon">{p.icon}</div>
                     <h3>{p.label}</h3>
-                    <div className="price">fino a {p.quota} allievi</div>
+                    <div className="price">{quotaText(p.quota)}</div>
                     {planPrices && <div style={{fontFamily:'Oswald', fontSize:15, marginBottom:8}}>{priceLabel(planPrices, p.id)}</div>}
                     <button className="btn block" disabled={billingBusy} onClick={()=>setPlanChangeTarget(p.id)}>
-                      {p.quota > coach.athlete_quota ? '↑ Upgrade' : '↓ Downgrade'}
+                      {effectiveQuota(p.quota) > effectiveQuota(coach.match_quota) ? '↑ Upgrade' : '↓ Downgrade'}
                     </button>
                   </div>
                 ))}

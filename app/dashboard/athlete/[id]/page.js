@@ -216,7 +216,7 @@ export default function AthleteMatches() {
   }
 
   async function handleDeactivate() {
-    if (!confirm(`Disattivare ${athlete.full_name}? Non potrà più accedere col PIN e non conterà più nella tua quota, ma tutto lo storico resta salvato. Puoi riattivarlo in ogni momento.`)) return;
+    if (!confirm(`Disattivare ${athlete.full_name}? Non potrà più accedere col PIN, ma tutto lo storico resta salvato. Puoi riattivarlo in ogni momento.`)) return;
     setDeactivating(true);
     try {
       const { error } = await supabase.from('athletes').update({ active: false }).eq('id', params.id);

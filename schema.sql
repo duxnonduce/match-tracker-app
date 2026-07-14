@@ -23,7 +23,8 @@ create table coaches (
   stripe_customer_id text,
   stripe_subscription_id text,
   plan_tier text default 'none',          -- 'none' | 'basic20' | 'plus50' | 'pro100'
-  athlete_quota int default 0,             -- quanti allievi può registrare
+  athlete_quota int default 0,             -- non più usato per bloccare nulla (storico)
+  match_quota int,                          -- NULL = illimitato; altrimenti tetto di partite registrabili
   subscription_status text default 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
   current_period_end timestamptz,
   cancel_at_period_end boolean default false,
@@ -215,3 +216,29 @@ create table push_subscriptions (
 
 create index idx_push_owner on push_subscriptions(owner_type, owner_id);
 alter table push_subscriptions enable row level security;
+
+-- ------------------------------------------------------------
+-- Blocca l'inserimento di nuove partite oltre il limite del piano
+-- (match_quota = NULL vuol dire illimitato). Vedi migration-11.sql per
+-- la spiegazione completa.
+-- ------------------------------------------------------------
+create or replace function check_match_quota()
+returns trigger as $$
+declare
+  quota int;
+  current_count int;
+begin
+  select match_quota into quota from coaches where id = new.coach_id;
+  if quota is not null then
+    select count(*) into current_count from matches where coach_id = new.coach_id;
+    if current_count >= quota then
+      raise exception 'MATCH_QUOTA_EXCEEDED: limite di % partite del tuo pacchetto raggiunto', quota;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger trg_check_match_quota
+  before insert on matches
+  for each row execute function check_match_quota();

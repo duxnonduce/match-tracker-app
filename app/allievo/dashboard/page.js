@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { enablePushNotifications } from '../../../lib/pushClient';
+import { enablePushNotifications, checkPushEnabled } from '../../../lib/pushClient';
 
 const SHOT_LABELS = {
   dritto: 'Diritto', rovescio: 'Rovescio', servizio: 'Servizio', volee: 'Volée',
@@ -57,6 +57,7 @@ export default function AthleteDashboard() {
         setGoals(goalsData.goals || []);
       }
       setLoading(false);
+      checkPushEnabled().then(enabled => { if (enabled) setPushStatus('✅ Notifiche attive'); });
     })();
   }, []);
 

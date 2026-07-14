@@ -1,6 +1,6 @@
 // FILE: /app/api/billing/checkout/route.js
-// Il maestro sceglie un pacchetto (20/50/100 allievi) e viene mandato
-// alla pagina di pagamento ospitata da Stripe (Stripe Checkout).
+// Il maestro sceglie un pacchetto (10/30/illimitate partite) e viene
+// mandato alla pagina di pagamento ospitata da Stripe (Stripe Checkout).
 
 import Stripe from 'stripe';
 
@@ -9,9 +9,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 // Questi ID li ottieni da Stripe Dashboard → Product catalog, dopo aver
 // creato i 3 prodotti in abbonamento (vedi FASE 2 della guida).
 const PRICE_IDS = {
-  basic20: process.env.STRIPE_PRICE_BASIC20,
-  plus50: process.env.STRIPE_PRICE_PLUS50,
-  pro100: process.env.STRIPE_PRICE_PRO100,
+  base10: process.env.STRIPE_PRICE_BASE10,
+  plus30: process.env.STRIPE_PRICE_PLUS30,
+  pro: process.env.STRIPE_PRICE_PRO,
 };
 
 export async function POST(request) {

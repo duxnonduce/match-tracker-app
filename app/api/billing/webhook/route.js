@@ -14,8 +14,9 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-const QUOTA_BY_PLAN = { basic20: 20, plus50: 50, pro100: 100 };
-const PLAN_LABELS = { basic20: 'Base', plus50: 'Plus', pro100: 'Pro' };
+// null = partite illimitate (piano Pro)
+const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro: null };
+const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro: 'Pro' };
 
 // Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
 // abbonamento al livello della singola voce (item) dell'abbonamento.
@@ -29,6 +30,10 @@ function getPeriodEnd(sub) {
 function formatDateIt(iso) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function quotaLabel(quota) {
+  return quota == null ? 'illimitate' : String(quota);
 }
 
 export async function POST(request) {
@@ -59,7 +64,7 @@ export async function POST(request) {
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
         plan_tier: plan,
-        athlete_quota: QUOTA_BY_PLAN[plan] || 0,
+        match_quota: MATCH_QUOTA_BY_PLAN[plan] ?? null,
         subscription_status: 'active',
         current_period_end: periodEndIso,
         renewal_reminder_sent_at: null, // reset: nuovo ciclo, nuovo eventuale promemoria
@@ -72,7 +77,7 @@ export async function POST(request) {
             toEmail: coach.email,
             coachName: coach.first_name,
             planLabel: PLAN_LABELS[plan] || plan,
-            quota: QUOTA_BY_PLAN[plan],
+            quota: quotaLabel(MATCH_QUOTA_BY_PLAN[plan]),
             periodEndFormatted: formatDateIt(periodEndIso),
           });
         }
@@ -101,9 +106,11 @@ export async function POST(request) {
         current_period_end: newPeriodEndIso,
         cancel_at_period_end: !!sub.cancel_at_period_end,
       };
-      if (plan && QUOTA_BY_PLAN[plan]) {
+      // NB: usiamo "plan in MATCH_QUOTA_BY_PLAN" e non "MATCH_QUOTA_BY_PLAN[plan]"
+      // perché il piano Pro ha quota null, che sarebbe falsy in un if diretto.
+      if (plan && Object.prototype.hasOwnProperty.call(MATCH_QUOTA_BY_PLAN, plan)) {
         update.plan_tier = plan;
-        update.athlete_quota = QUOTA_BY_PLAN[plan];
+        update.match_quota = MATCH_QUOTA_BY_PLAN[plan];
       }
       // Azzeriamo il flag del promemoria SOLO se è iniziato davvero un nuovo
       // ciclo di fatturazione, non ad ogni modifica minore della sottoscrizione.
@@ -116,7 +123,7 @@ export async function POST(request) {
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
       await supabaseAdmin.from('coaches')
-        .update({ subscription_status: 'canceled', athlete_quota: 0, cancel_at_period_end: false })
+        .update({ subscription_status: 'canceled', match_quota: 0, cancel_at_period_end: false })
         .eq('stripe_subscription_id', sub.id);
       break;
     }

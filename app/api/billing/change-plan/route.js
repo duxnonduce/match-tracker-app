@@ -13,11 +13,17 @@ const supabaseAdmin = createClient(
 );
 
 const PRICE_IDS = {
-  basic20: process.env.STRIPE_PRICE_BASIC20,
-  plus50: process.env.STRIPE_PRICE_PLUS50,
-  pro100: process.env.STRIPE_PRICE_PRO100,
+  base10: process.env.STRIPE_PRICE_BASE10,
+  plus30: process.env.STRIPE_PRICE_PLUS30,
+  pro: process.env.STRIPE_PRICE_PRO,
 };
-const QUOTA_BY_PLAN = { basic20: 20, plus50: 50, pro100: 100 };
+// null = partite illimitate (piano Pro)
+const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro: null };
+
+function effectiveQuota(plan) {
+  const q = MATCH_QUOTA_BY_PLAN[plan];
+  return q == null ? Infinity : q;
+}
 
 // Da marzo 2025 Stripe ha spostato "current_period_end" dal livello
 // abbonamento al livello della singola voce (item) dell'abbonamento.
@@ -36,7 +42,7 @@ export async function POST(request) {
 
   const { data: coach, error: coachErr } = await supabaseAdmin
     .from('coaches')
-    .select('stripe_subscription_id, athlete_quota, plan_tier')
+    .select('stripe_subscription_id, plan_tier')
     .eq('id', coachId)
     .single();
 
@@ -48,17 +54,17 @@ export async function POST(request) {
     return Response.json({ error: 'Sei già su questo pacchetto' }, { status: 400 });
   }
 
-  // Se stai facendo un downgrade, controlliamo che il numero di allievi
-  // attivi non superi la nuova quota, altrimenti si bloccherebbe da solo.
-  if (QUOTA_BY_PLAN[newPlan] < QUOTA_BY_PLAN[coach.plan_tier]) {
+  // Se stai facendo un downgrade, controlliamo che le partite già
+  // registrate non superino la nuova quota, altrimenti resteresti
+  // bloccato subito senza poterne registrare altre.
+  if (effectiveQuota(newPlan) < effectiveQuota(coach.plan_tier)) {
     const { count } = await supabaseAdmin
-      .from('athletes')
+      .from('matches')
       .select('*', { count: 'exact', head: true })
-      .eq('coach_id', coachId)
-      .eq('active', true);
-    if (count > QUOTA_BY_PLAN[newPlan]) {
+      .eq('coach_id', coachId);
+    if (count > MATCH_QUOTA_BY_PLAN[newPlan]) {
       return Response.json(
-        { error: `Hai ${count} allievi attivi: disattivane almeno ${count - QUOTA_BY_PLAN[newPlan]} prima di scendere a questo pacchetto.` },
+        { error: `Hai già ${count} partite registrate: il pacchetto "${newPlan}" ne permette solo ${MATCH_QUOTA_BY_PLAN[newPlan]}. Non puoi scendere a questo pacchetto (le partite già registrate restano comunque visibili).` },
         { status: 400 }
       );
     }
@@ -81,7 +87,7 @@ export async function POST(request) {
     // confermare, ma così l'interfaccia si aggiorna all'istante).
     await supabaseAdmin.from('coaches').update({
       plan_tier: newPlan,
-      athlete_quota: QUOTA_BY_PLAN[newPlan],
+      match_quota: MATCH_QUOTA_BY_PLAN[newPlan],
       subscription_status: updated.status,
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
     }).eq('id', coachId);

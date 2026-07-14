@@ -1,7 +1,8 @@
 // FILE: /app/api/coach/athletes/route.js
 // Il maestro (loggato con Supabase Auth) aggiunge un nuovo allievo.
-// Qui applichiamo il controllo della quota del pacchetto acquistato e
-// validiamo il codice fiscale contro nome/cognome/data di nascita.
+// Nessun limite sul numero di allievi: verifichiamo solo che
+// l'abbonamento sia attivo, e validiamo il codice fiscale contro
+// nome/cognome/data di nascita.
 
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
@@ -30,10 +31,12 @@ export async function POST(request) {
     return Response.json({ error: 'Devi confermare di avere il consenso del genitore/tutore (se l\'allievo è minorenne) prima di procedere.' }, { status: 400 });
   }
 
-  // 1) verifica quota del piano E che l'abbonamento sia davvero attivo
+  // 1) verifica solo che l'abbonamento sia attivo — non c'è più un limite
+  // sul numero di allievi (il piano ora limita le PARTITE registrate, non
+  // gli allievi: vedi il trigger check_match_quota() sul database).
   const { data: coach, error: coachErr } = await supabaseAdmin
     .from('coaches')
-    .select('athlete_quota, subscription_status')
+    .select('subscription_status')
     .eq('id', coachId)
     .single();
 
@@ -42,19 +45,6 @@ export async function POST(request) {
   }
   if (coach.subscription_status !== 'active') {
     return Response.json({ error: 'Abbonamento non attivo: rinnova per aggiungere allievi.' }, { status: 402 });
-  }
-
-  const { count } = await supabaseAdmin
-    .from('athletes')
-    .select('*', { count: 'exact', head: true })
-    .eq('coach_id', coachId)
-    .eq('active', true);
-
-  if (count >= coach.athlete_quota) {
-    return Response.json(
-      { error: `Hai raggiunto il limite di ${coach.athlete_quota} allievi del tuo pacchetto. Fai upgrade per aggiungerne altri.` },
-      { status: 403 }
-    );
   }
 
   // 2) valida il codice fiscale (se fornito) contro i dati anagrafici
