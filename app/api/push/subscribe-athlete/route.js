@@ -3,10 +3,13 @@
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 function getAthleteFromToken(request) {
   const auth = request.headers.get('authorization') || '';
@@ -32,7 +35,7 @@ export async function POST(request) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin.from('push_subscriptions').upsert({
+  const { error } = await getSupabaseAdmin().from('push_subscriptions').upsert({
     owner_type: 'athlete',
     owner_id: athlete.athleteId,
     endpoint: subscription.endpoint,

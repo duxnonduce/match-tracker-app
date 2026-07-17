@@ -4,11 +4,20 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _stripe = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 export async function POST(request) {
   const { coachId, action } = await request.json();
@@ -29,11 +38,11 @@ export async function POST(request) {
 
   try {
     const cancelAtPeriodEnd = action === 'cancel';
-    const updated = await stripe.subscriptions.update(coach.stripe_subscription_id, {
+    const updated = await getStripe().subscriptions.update(coach.stripe_subscription_id, {
       cancel_at_period_end: cancelAtPeriodEnd,
     });
 
-    await supabaseAdmin.from('coaches').update({
+    await getSupabaseAdmin().from('coaches').update({
       cancel_at_period_end: cancelAtPeriodEnd,
       subscription_status: updated.status,
     }).eq('id', coachId);

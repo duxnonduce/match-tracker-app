@@ -4,7 +4,13 @@
 
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let _stripe = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
 
 const PRICE_IDS = {
   base10: process.env.STRIPE_PRICE_BASE10,
@@ -23,7 +29,7 @@ export async function GET() {
     const entries = await Promise.all(
       Object.entries(PRICE_IDS).map(async ([plan, priceId]) => {
         if (!priceId) return [plan, null];
-        const price = await stripe.prices.retrieve(priceId);
+        const price = await getStripe().prices.retrieve(priceId);
         return [plan, {
           amountCents: price.unit_amount,
           currency: price.currency,

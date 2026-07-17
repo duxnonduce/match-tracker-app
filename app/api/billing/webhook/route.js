@@ -8,11 +8,20 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendSubscriptionConfirmedEmail } from '../../../../lib/email';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _stripe = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 // null = partite illimitate (piano Oro)
 const MATCH_QUOTA_BY_PLAN = { base10: 10, plus30: 30, pro50: 50, oro: null };
@@ -46,7 +55,7 @@ export async function POST(request) {
 
   let event;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    event = getStripe().webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     return Response.json({ error: `Firma webhook non valida: ${err.message}` }, { status: 400 });
   }
@@ -60,14 +69,14 @@ export async function POST(request) {
       // mettere nell'email e da usare per il conteggio mensile delle partite.
       let periodEndIso = null, periodStartIso = null;
       try {
-        const sub = await stripe.subscriptions.retrieve(session.subscription, { expand: ['items'] });
+        const sub = await getStripe().subscriptions.retrieve(session.subscription, { expand: ['items'] });
         const periodEndUnix = getPeriodEnd(sub);
         const periodStartUnix = getPeriodStart(sub);
         periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
         periodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
       } catch (e) { /* non bloccante: mandiamo comunque l'email senza data se fallisce */ }
 
-      await supabaseAdmin.from('coaches').update({
+      await getSupabaseAdmin().from('coaches').update({
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
         plan_tier: plan,
@@ -79,7 +88,7 @@ export async function POST(request) {
       }).eq('id', coachId);
 
       try {
-        const { data: coach } = await supabaseAdmin.from('coaches').select('email, first_name').eq('id', coachId).single();
+        const { data: coach } = await getSupabaseAdmin().from('coaches').select('email, first_name').eq('id', coachId).single();
         if (coach) {
           await sendSubscriptionConfirmedEmail({
             toEmail: coach.email,
@@ -129,13 +138,13 @@ export async function POST(request) {
       // ciclo di fatturazione, non ad ogni modifica minore della sottoscrizione.
       if (periodRolledOver) update.renewal_reminder_sent_at = null;
 
-      await supabaseAdmin.from('coaches').update(update).eq('stripe_subscription_id', sub.id);
+      await getSupabaseAdmin().from('coaches').update(update).eq('stripe_subscription_id', sub.id);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
-      await supabaseAdmin.from('coaches')
+      await getSupabaseAdmin().from('coaches')
         .update({ subscription_status: 'canceled', match_quota: 0, cancel_at_period_end: false })
         .eq('stripe_subscription_id', sub.id);
       break;

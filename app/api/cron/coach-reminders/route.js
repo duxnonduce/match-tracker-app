@@ -8,10 +8,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToOwner } from '../../../../lib/push';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 export async function GET(request) {
   const auth = request.headers.get('authorization') || '';
@@ -39,9 +42,9 @@ export async function GET(request) {
 
   // 2) maestri con bozze (partite/allenamenti/obiettivi) vecchie di 2+ giorni
   const [{ data: draftMatches }, { data: draftTrainings }, { data: draftGoals }] = await Promise.all([
-    supabaseAdmin.from('matches').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
-    supabaseAdmin.from('training_sessions').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
-    supabaseAdmin.from('athlete_goals').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('matches').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('training_sessions').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('athlete_goals').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
   ]);
 
   const draftCounts = {};

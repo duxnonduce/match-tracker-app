@@ -4,7 +4,13 @@
 
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let _stripe = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
 
 // Questi ID li ottieni da Stripe Dashboard → Product catalog, dopo aver
 // creato i 4 prodotti in abbonamento.
@@ -31,7 +37,7 @@ export async function POST(request) {
   }
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: 'subscription',
       customer_email: coachEmail,
       line_items: [{ price: priceId, quantity: 1 }],

@@ -4,10 +4,13 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTrainingPublishedEmail } from '../../../../lib/email';
 import { sendPushToOwner } from '../../../../lib/push';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 const SHOT_LABELS = {
   dritto: 'Diritto', rovescio: 'Rovescio', servizio: 'Servizio', volee: 'Volée',
@@ -31,8 +34,8 @@ export async function POST(request) {
   }
 
   const [{ data: athlete }, { data: coach }] = await Promise.all([
-    supabaseAdmin.from('athletes').select('email, full_name').eq('id', session.athlete_id).single(),
-    supabaseAdmin.from('coaches').select('first_name, last_name, academy_name').eq('id', session.coach_id).single(),
+    getSupabaseAdmin().from('athletes').select('email, full_name').eq('id', session.athlete_id).single(),
+    getSupabaseAdmin().from('coaches').select('first_name, last_name, academy_name').eq('id', session.coach_id).single(),
   ]);
 
   const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');

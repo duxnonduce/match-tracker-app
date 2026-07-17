@@ -7,10 +7,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendRenewalReminderEmail } from '../../../../lib/email';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro50: 'Pro', oro: 'Oro' };
 const REMINDER_WINDOW_DAYS = 3;
@@ -52,7 +55,7 @@ export async function GET(request) {
         planLabel: PLAN_LABELS[coach.plan_tier] || coach.plan_tier,
         periodEndFormatted: formatDateIt(coach.current_period_end),
       });
-      await supabaseAdmin.from('coaches').update({ renewal_reminder_sent_at: new Date().toISOString() }).eq('id', coach.id);
+      await getSupabaseAdmin().from('coaches').update({ renewal_reminder_sent_at: new Date().toISOString() }).eq('id', coach.id);
       sent++;
     } catch (e) {
       console.warn('invio promemoria fallito per', coach.id, e);

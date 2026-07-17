@@ -5,10 +5,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToOwner } from '../../../../lib/push';
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 export async function POST(request) {
   const { goalId } = await request.json();

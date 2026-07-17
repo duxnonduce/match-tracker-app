@@ -6,11 +6,20 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _stripe = null;
+function getStripe() {
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return _stripe;
+}
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 const PRICE_IDS = {
   base10: process.env.STRIPE_PRICE_BASE10,
@@ -63,7 +72,7 @@ export async function POST(request) {
   // registrate NEL MESE CORRENTE non superino la nuova quota, altrimenti
   // resteresti bloccato subito senza poterne registrare altre.
   if (effectiveQuota(newPlan) < effectiveQuota(coach.plan_tier)) {
-    let query = supabaseAdmin.from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
+    let query = getSupabaseAdmin().from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
     if (coach.current_period_start) query = query.gte('created_at', coach.current_period_start);
     const { count } = await query;
     if (count > MATCH_QUOTA_BY_PLAN[newPlan]) {
@@ -75,10 +84,10 @@ export async function POST(request) {
   }
 
   try {
-    const subscription = await stripe.subscriptions.retrieve(coach.stripe_subscription_id);
+    const subscription = await getStripe().subscriptions.retrieve(coach.stripe_subscription_id);
     const itemId = subscription.items.data[0].id;
 
-    const updated = await stripe.subscriptions.update(coach.stripe_subscription_id, {
+    const updated = await getStripe().subscriptions.update(coach.stripe_subscription_id, {
       items: [{ id: itemId, price: priceId }],
       proration_behavior: 'create_prorations',
       metadata: { coachId, plan: newPlan },
@@ -90,7 +99,7 @@ export async function POST(request) {
 
     // Aggiorniamo subito anche noi (il webhook arriverà comunque a
     // confermare, ma così l'interfaccia si aggiorna all'istante).
-    await supabaseAdmin.from('coaches').update({
+    await getSupabaseAdmin().from('coaches').update({
       plan_tier: newPlan,
       match_quota: MATCH_QUOTA_BY_PLAN[newPlan],
       subscription_status: updated.status,

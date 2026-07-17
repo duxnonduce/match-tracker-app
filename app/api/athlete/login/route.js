@@ -8,10 +8,13 @@ import jwt from 'jsonwebtoken';
 
 // Questa chiave ha pieni poteri sul database: usarla SOLO lato server,
 // mai esporla al browser.
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabaseAdmin = null;
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return _supabaseAdmin;
+}
 
 export async function POST(request) {
   const { pin } = await request.json();
