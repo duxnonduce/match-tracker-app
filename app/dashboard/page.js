@@ -18,6 +18,13 @@ function effectiveQuota(quota) { return quota == null ? Infinity : quota; }
 
 const EMPTY_ATHLETE = { firstName: '', lastName: '', birthDate: '', phone: '', email: '', notes: '', dominantHand: '', fiscalCode: '', parentalConsent: false };
 
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buongiorno';
+  if (h < 18) return 'Buon pomeriggio';
+  return 'Buonasera';
+}
+
 function initials(name) {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
@@ -294,33 +301,42 @@ export default function Dashboard() {
 
   return (
     <div className="wrap">
-      <div className="topbar-slim">
-        <div className="who">
-          <div className="avatar">{initials(coachDisplayName)}</div>
-          <div className="who-text">
-            <h1>{coachDisplayName || 'Il mio profilo'}</h1>
-            <div className="sub">{coach?.academy_name || 'Maestro di tennis'}{coach?.academy_city ? ' · ' + coach.academy_city : ''}</div>
+      <div className="hero-header">
+        <div className="hh-top">
+          <div className="hh-who">
+            <div className="avatar-ring"><div className="avatar">{initials(coachDisplayName)}</div></div>
+            <div className="who-text">
+              <div className="hh-greeting">{greeting()}</div>
+              <h1>{coachDisplayName || 'Il mio profilo'}</h1>
+              <div className="hh-sub">{coach?.academy_name || 'Maestro di tennis'}{coach?.academy_city ? ' · ' + coach.academy_city : ''}</div>
+            </div>
           </div>
+          <button className="icon-btn" onClick={handleLogout} title="Esci">⏻</button>
         </div>
-        <button className="icon-btn" onClick={handleLogout} title="Esci">⏻</button>
+
+        {coach && (
+          <div className="bento-grid">
+            <div className="bento-cell" onClick={()=>setActiveTab('allievi')}>
+              <span className="bc-icon">👥</span>
+              <span className="bc-value">{athletes.length}</span>
+              <span className="bc-label">Allievi</span>
+            </div>
+            <div className={'bento-cell' + (coach.match_quota != null && matchCount >= coach.match_quota ? ' warn' : '')} onClick={()=>setActiveTab('abbonamento')}>
+              <span className="bc-icon">🎾</span>
+              <span className="bc-value">{matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ''}</span>
+              <span className="bc-label">Partite/mese</span>
+            </div>
+            <div className={'bento-cell' + (coach.subscription_status !== 'active' ? ' warn' : '')} onClick={()=>setActiveTab('abbonamento')}>
+              <span className="bc-icon">{currentPlan?.icon || '🎾'}</span>
+              <span className="bc-value" style={{fontSize:14, textTransform:'capitalize'}}>{coach.plan_tier}</span>
+              <span className="bc-label" style={{color:statusInfo.color}}>{statusInfo.label}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="status-strip">
-        {coach && (
-          <span
-            className={'status-pill' + (coach.subscription_status !== 'active' ? ' warn' : '')}
-            onClick={()=>setActiveTab('abbonamento')}
-          >
-            <span className="dot" style={{background: statusInfo.color}}></span>
-            {currentPlan?.icon || '🎾'} {coach.plan_tier} · {statusInfo.label}
-          </span>
-        )}
-        {coach?.subscription_status === 'active' && (
-          <span className="status-pill" onClick={()=>setActiveTab('abbonamento')}>
-            📊 {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ''} partite/mese
-          </span>
-        )}
-        <span className="status-pill" onClick={handleEnablePush} style={{marginLeft:'auto'}}>
+        <span className="status-pill" onClick={handleEnablePush}>
           {pushStatus || '🔔 Attiva notifiche'}
         </span>
       </div>
@@ -355,6 +371,10 @@ export default function Dashboard() {
 
           {activeTab === 'abbonamento' && (
           <div className="card">
+            <div className="section-title-row">
+              <div className="icon-badge gold">💳</div>
+              <h2>Il tuo abbonamento</h2>
+            </div>
             <div className="row">
               <div>
                 <div className="muted">Pacchetto attuale</div>
@@ -364,18 +384,20 @@ export default function Dashboard() {
                   <span style={{color:statusInfo.color, fontSize:12, marginLeft:8, fontFamily:'Inter'}}>● {statusInfo.label}</span>
                 </div>
               </div>
-              <div style={{textAlign:'right'}}>
-                <div className="muted">Partite questo mese</div>
-                <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2, color:'var(--accent)'}}>
-                  {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ' (illimitate)'}
+              <div style={{display:'flex', alignItems:'center', gap:10}}>
+                <div style={{textAlign:'right'}}>
+                  <div className="muted">Partite questo mese</div>
+                  <div style={{fontFamily:'Oswald', fontSize:19, marginTop:2, color:'var(--accent)'}}>
+                    {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ' (illimitate)'}
+                  </div>
                 </div>
+                {coach.match_quota != null && (
+                  <div className="ring-progress" style={{'--pct': usagePct, '--ring-color': usagePct>=100 ? 'var(--danger)' : 'var(--accent)'}}>
+                    <div className="ring-inner">{usagePct}%</div>
+                  </div>
+                )}
               </div>
             </div>
-            {coach.match_quota != null && (
-              <div style={{background:'var(--surface2)', borderRadius:20, height:8, marginTop:14, overflow:'hidden'}}>
-                <div style={{width:usagePct+'%', height:'100%', background: usagePct>=100 ? 'var(--danger)' : 'var(--accent)', borderRadius:20, transition:'width .3s'}}></div>
-              </div>
-            )}
             {coach.match_quota != null && matchCount >= coach.match_quota && (
               <p className="error" style={{marginTop:10, marginBottom:0}}>Hai raggiunto il limite di partite del tuo pacchetto. Fai upgrade per registrarne altre.</p>
             )}
@@ -430,7 +452,10 @@ export default function Dashboard() {
           <>
           <div className="card">
             <div className="row" style={{marginBottom: showAthleteForm ? 16 : 0}}>
-              <h2 style={{fontSize:17}}>➕ Aggiungi un allievo</h2>
+              <div className="section-title-row" style={{marginBottom:0}}>
+                <div className="icon-badge">➕</div>
+                <h2>Aggiungi un allievo</h2>
+              </div>
               {!showAthleteForm && <button className="btn secondary" onClick={()=>setShowAthleteForm(true)}>Nuovo allievo</button>}
             </div>
 
@@ -502,26 +527,30 @@ export default function Dashboard() {
           </div>
 
           <div className="card">
-            <h2 style={{fontSize:17}}>👥 I tuoi allievi <span className="muted" style={{fontSize:13, fontWeight:400}}>({athletes.length})</span></h2>
+            <div className="section-title-row">
+              <div className="icon-badge blue">👥</div>
+              <h2>I tuoi allievi</h2>
+              <span className="stc">{athletes.length}</span>
+            </div>
             {athletes.length > 5 && (
               <input
                 value={athleteSearch}
                 onChange={e=>setAthleteSearch(e.target.value)}
                 placeholder="🔍 Cerca per nome..."
-                style={{width:'100%', padding:'11px 14px', borderRadius:10, border:'1px solid var(--line)', background:'var(--surface2)', color:'var(--text)', fontSize:14, marginTop:10, marginBottom:6}}
+                style={{width:'100%', padding:'11px 14px', borderRadius:10, border:'1px solid var(--line)', background:'var(--surface2)', color:'var(--text)', fontSize:14, marginBottom:10}}
               />
             )}
             {athletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo ancora — aggiungine uno qui sopra.</p>}
             {athletes.length > 0 && filteredAthletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo trovato per "{athleteSearch}".</p>}
             <div className="athlete-grid">
               {filteredAthletes.map(a => (
-                <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="athlete-card">
+                <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="athlete-card-v3">
                   <div className="avatar">{initials(a.full_name)}</div>
                   <div className="li-text">
                     <div className="li-title">{a.full_name}</div>
                     {a.birth_date && <div className="li-sub">Nato/a il {new Date(a.birth_date).toLocaleDateString('it-IT')}</div>}
                   </div>
-                  <span className="muted">→</span>
+                  <span className="arrow">→</span>
                 </Link>
               ))}
             </div>

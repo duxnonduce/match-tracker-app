@@ -240,3 +240,97 @@ a.list-item:active{transform:scale(.99);}
   background:var(--accent);color:#0c1710;border:none;font-size:26px;box-shadow:0 6px 18px rgba(0,0,0,0.4);
   cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;
 }
+
+/* ============================================================
+   V3 — Hero gradiente, bento grid, anelli di progresso, icon badge
+============================================================ */
+.hero-header{
+  position:relative;overflow:hidden;border-radius:20px;padding:26px 22px;margin-bottom:16px;
+  background:
+    radial-gradient(420px 220px at 100% -20%, rgba(215,255,78,0.20), transparent 60%),
+    radial-gradient(360px 200px at -10% 120%, rgba(89,166,255,0.16), transparent 60%),
+    linear-gradient(160deg, var(--surface) 0%, var(--surface2) 100%);
+  border:1px solid var(--line);
+}
+.hero-header::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(238,242,234,0.05) 1px, transparent 1px);
+  background-size:16px 16px;mask-image:linear-gradient(180deg, black, transparent 85%);
+}
+.hero-header .hh-top{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:1;}
+.hero-header .hh-who{display:flex;align-items:center;gap:14px;min-width:0;}
+.hero-header .avatar-ring{
+  width:58px;height:58px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(var(--accent), #8fe0c9, var(--accent));padding:2.5px;
+}
+.hero-header .avatar-ring .avatar{width:100%;height:100%;font-size:19px;}
+.hero-header .hh-greeting{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:2px;}
+.hero-header h1{font-size:19px;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hero-header .hh-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+.bento-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:18px;position:relative;z-index:1;}
+@media(max-width:420px){.bento-grid{grid-template-columns:1fr 1fr;}}
+.bento-cell{
+  background:rgba(16,29,22,0.45);border:1px solid var(--line);border-radius:13px;padding:11px 10px;
+  display:flex;flex-direction:column;gap:2px;cursor:pointer;transition:border-color .15s, transform .1s;
+}
+.bento-cell:active{transform:scale(.97);}
+.bento-cell:hover{border-color:var(--accent);}
+.bento-cell.warn{border-color:var(--danger);}
+.bento-cell .bc-icon{font-size:15px;opacity:.85;}
+.bento-cell .bc-value{font-family:'Oswald';font-size:17px;font-weight:700;margin-top:2px;}
+.bento-cell .bc-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+
+.ring-progress{
+  --pct: 0;
+  width:46px;height:46px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(var(--ring-color, var(--accent)) calc(var(--pct)*1%), var(--surface3) 0);
+  display:flex;align-items:center;justify-content:center;
+}
+.ring-progress .ring-inner{
+  width:36px;height:36px;border-radius:50%;background:var(--surface);
+  display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-size:10.5px;font-weight:700;
+}
+
+.section-title-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.icon-badge{
+  width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:16px;background:var(--accent-dim);
+}
+.icon-badge.blue{background:rgba(89,166,255,0.16);}
+.icon-badge.pink{background:rgba(255,111,156,0.16);}
+.icon-badge.gold{background:rgba(227,178,60,0.16);}
+.section-title-row h2{margin:0;font-size:15.5px;}
+.section-title-row .stc{margin-left:auto;font-size:12px;color:var(--muted);}
+
+.athlete-card-v3{
+  position:relative;background:var(--surface2);border:1px solid var(--line);border-radius:16px;padding:15px;
+  display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;
+  transition:border-color .15s, transform .1s;overflow:hidden;
+}
+.athlete-card-v3::before{
+  content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);opacity:0;transition:opacity .15s;
+}
+.athlete-card-v3:hover{border-color:var(--accent);transform:translateY(-1px);}
+.athlete-card-v3:hover::before{opacity:1;}
+.athlete-card-v3:active{transform:scale(.98);}
+.athlete-card-v3 .avatar{width:42px;height:42px;font-size:15px;}
+.athlete-card-v3 .li-text{min-width:0;flex:1;}
+.athlete-card-v3 .li-title{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.athlete-card-v3 .arrow{color:var(--muted);transition:transform .15s;}
+.athlete-card-v3:hover .arrow{transform:translateX(3px);color:var(--accent);}
+
+.glow-card{position:relative;}
+.glow-card::before{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;z-index:-1;
+  background:linear-gradient(135deg, var(--accent), transparent 40%, transparent 60%, var(--allievo));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;
+}
+
+.sparkline-wrap{background:var(--surface2);border-radius:12px;padding:12px;margin-top:12px;}
+
+.list-item-v3{position:relative;overflow:hidden;transition:border-color .15s, transform .1s;}
+.list-item-v3::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);opacity:0;transition:opacity .15s;}
+.list-item-v3:hover{border-color:var(--accent);transform:translateX(2px);}
+.list-item-v3:hover::before{opacity:1;}

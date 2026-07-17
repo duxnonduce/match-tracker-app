@@ -234,62 +234,72 @@ export default function AthleteMatches() {
     <div className="wrap">
       <Link href="/dashboard" className="muted">← Torna alla dashboard</Link>
 
-      <div className="card" style={{marginTop:14}}>
-        <div className="row" style={{alignItems:'flex-start'}}>
-          <div className="li-main">
-            <div className="avatar lg">{initials(athlete?.full_name)}</div>
-            <div>
-              <h1 style={{fontSize:20, margin:0}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
-              {athlete?.birth_date && <div className="muted" style={{marginTop:3}}>Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}{athlete?.dominant_hand && ` · ${athlete.dominant_hand === 'sinistra' ? 'Mancino' : 'Destro'}`}</div>}
+      <div className="hero-header" style={{marginTop:14}}>
+        <div className="hh-top">
+          <div className="hh-who">
+            <div className="avatar-ring"><div className="avatar" style={{fontSize:17}}>{initials(athlete?.full_name)}</div></div>
+            <div className="who-text">
+              <h1 style={{fontSize:19}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
+              {athlete?.birth_date && <div className="hh-sub">Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}{athlete?.dominant_hand && ` · ${athlete.dominant_hand === 'sinistra' ? 'Mancino' : 'Destro'}`}</div>}
             </div>
           </div>
-          <div style={{display:'flex', flexDirection:'column', gap:8}}>
-            <Link href={`/tracker?athleteId=${params.id}`} className="btn">＋ Nuova partita</Link>
-            <Link href={`/training?athleteId=${params.id}`} className="btn secondary">🎯 Nuovo allenamento</Link>
-          </div>
+        </div>
+
+        <div style={{display:'flex', gap:8, marginTop:16, position:'relative', zIndex:1}}>
+          <Link href={`/tracker?athleteId=${params.id}`} className="btn" style={{flex:1, textAlign:'center'}}>＋ Nuova partita</Link>
+          <Link href={`/training?athleteId=${params.id}`} className="btn secondary" style={{flex:1, textAlign:'center'}}>🎯 Allenamento</Link>
         </div>
 
         {(athlete?.phone || athlete?.email || athlete?.fiscal_code || athlete?.notes) && (
-          <div className="stat-mini-grid" style={{marginTop:16}}>
-            {athlete?.phone && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.phone}</div><div className="l">Telefono</div></div>}
-            {athlete?.email && <div className="stat-mini"><div className="v" style={{fontSize:13}}>{athlete.email}</div><div className="l">Email</div></div>}
+          <div className="bento-grid" style={{gridTemplateColumns:'repeat(2,1fr)'}}>
+            {athlete?.phone && <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">📞</span><span className="bc-value" style={{fontSize:13}}>{athlete.phone}</span><span className="bc-label">Telefono</span></div>}
+            {athlete?.email && <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">✉️</span><span className="bc-value" style={{fontSize:12}}>{athlete.email}</span><span className="bc-label">Email</span></div>}
             {athlete?.fiscal_code && (
-              <div className="stat-mini">
-                <div className="v" style={{fontSize:11.5, letterSpacing:.5, cursor:'pointer'}} onClick={()=>setShowFiscalCode(s=>!s)}>
-                  {showFiscalCode ? athlete.fiscal_code : maskFiscalCode(athlete.fiscal_code)}
-                </div>
-                <div className="l">Codice fiscale · <a style={{cursor:'pointer'}} onClick={()=>setShowFiscalCode(s=>!s)}>{showFiscalCode ? 'nascondi' : 'mostra'}</a></div>
+              <div className="bento-cell" onClick={()=>setShowFiscalCode(s=>!s)}>
+                <span className="bc-icon">🪪</span>
+                <span className="bc-value" style={{fontSize:11}}>{showFiscalCode ? athlete.fiscal_code : maskFiscalCode(athlete.fiscal_code)}</span>
+                <span className="bc-label">CF · {showFiscalCode ? 'nascondi' : 'mostra'}</span>
               </div>
             )}
-            {athlete?.notes && <div className="stat-mini" style={{gridColumn:'1/-1'}}><div className="v" style={{fontSize:13, fontFamily:'Inter', fontWeight:500}}>{athlete.notes}</div><div className="l">Note</div></div>}
+            {athlete?.notes && <div className="bento-cell" style={{cursor:'default', gridColumn:'1/-1'}}><span className="bc-icon">📝</span><span className="bc-value" style={{fontSize:12.5, fontFamily:'Inter'}}>{athlete.notes}</span><span className="bc-label">Note</span></div>}
           </div>
         )}
+      </div>
 
-        <div style={{marginTop:16, paddingTop:16, borderTop:'1px solid var(--line)'}}>
-          <button className="btn secondary" onClick={handleRegeneratePin} disabled={regenerating}>
-            🔑 {regenerating ? 'Generazione…' : 'Rigenera PIN'}
-          </button>
-          <p className="field-hint">Usa questo se l'allievo ha perso o dimenticato il PIN. Quello vecchio smette subito di funzionare.</p>
-          {newPin && (
-            <div className="pin-reveal">
-              <div className="muted">PIN generato. Comunicalo ora all'allievo. Non sarà più visibile.</div>
-              <div className="pin">{newPin}</div>
-              <button className="btn secondary" style={{marginTop:10}} onClick={()=>setNewPin(null)}>Ho preso nota, nascondi</button>
-            </div>
-          )}
+      <div className="card">
+        <div className="section-title-row">
+          <div className="icon-badge">⚙️</div>
+          <h2>Gestione</h2>
         </div>
-
-        <div style={{marginTop:16, paddingTop:16, borderTop:'1px solid var(--line)'}}>
-          <button className="btn danger" onClick={handleDeactivate} disabled={deactivating}>
-            {deactivating ? 'Attendere…' : '⏸ Disattiva allievo'}
-          </button>
-          <p className="field-hint">Libera un posto nel tuo pacchetto e blocca l'accesso col PIN, ma mantiene tutto lo storico. Puoi riattivarlo quando vuoi dalla dashboard.</p>
+        <div className="row" style={{gap:8, flexWrap:'wrap'}}>
+          <div style={{flex:1, minWidth:180}}>
+            <button className="btn secondary block" onClick={handleRegeneratePin} disabled={regenerating}>
+              🔑 {regenerating ? 'Generazione…' : 'Rigenera PIN'}
+            </button>
+            <p className="field-hint">Usa questo se l'allievo ha perso il PIN.</p>
+          </div>
+          <div style={{flex:1, minWidth:180}}>
+            <button className="btn danger block" onClick={handleDeactivate} disabled={deactivating}>
+              {deactivating ? 'Attendere…' : '⏸ Disattiva allievo'}
+            </button>
+            <p className="field-hint">Blocca l'accesso, mantiene lo storico.</p>
+          </div>
         </div>
+        {newPin && (
+          <div className="pin-reveal">
+            <div className="muted">PIN generato. Comunicalo ora all'allievo. Non sarà più visibile.</div>
+            <div className="pin">{newPin}</div>
+            <button className="btn secondary" style={{marginTop:10}} onClick={()=>setNewPin(null)}>Ho preso nota, nascondi</button>
+          </div>
+        )}
       </div>
 
       <div className="card">
         <div className="row" style={{marginBottom: editingProfile ? 14 : 0}}>
-          <h2 style={{fontSize:17}}>📋 Scheda tecnica</h2>
+          <div className="section-title-row" style={{marginBottom:0}}>
+            <div className="icon-badge blue">📋</div>
+            <h2>Scheda tecnica</h2>
+          </div>
           {!editingProfile && <button className="btn secondary" onClick={()=>setEditingProfile(true)}>Modifica</button>}
         </div>
 
@@ -327,22 +337,41 @@ export default function AthleteMatches() {
       </div>
 
       <div className="card">
-        <h2 style={{fontSize:17}}>📈 Storico progressi</h2>
+        <div className="section-title-row">
+          <div className="icon-badge pink">📈</div>
+          <h2>Storico progressi</h2>
+        </div>
         {matches.length === 0 ? (
           <p className="muted" style={{marginTop:8}}>Nessuna partita ancora — i progressi compariranno qui.</p>
         ) : (
           <>
-            <div className="stat-mini-grid" style={{marginTop:12}}>
-              <div className="stat-mini"><div className="v">{matches.length}</div><div className="l">Partite giocate</div></div>
-              <div className="stat-mini"><div className="v">{avgRating != null ? avgRating.toFixed(1) : '—'}</div><div className="l">Media voto</div></div>
-              <div className="stat-mini"><div className="v" style={{fontSize:14, color:'var(--ok)'}}>{shotAggregate?.best?.net > 0 ? shotAggregate.best.label : '—'}</div><div className="l">Colpo migliore</div></div>
-              <div className="stat-mini"><div className="v" style={{fontSize:14, color:'var(--danger)'}}>{shotAggregate?.worst?.net < 0 ? shotAggregate.worst.label : '—'}</div><div className="l">Colpo da migliorare</div></div>
+            <div className="bento-grid" style={{gridTemplateColumns:'repeat(2,1fr)'}}>
+              <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">🎾</span><span className="bc-value">{matches.length}</span><span className="bc-label">Partite giocate</span></div>
+              <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">⭐</span><span className="bc-value">{avgRating != null ? avgRating.toFixed(1) : '—'}</span><span className="bc-label">Media voto</span></div>
+              <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">💪</span><span className="bc-value" style={{fontSize:13, color:'var(--ok)'}}>{shotAggregate?.best?.net > 0 ? shotAggregate.best.label : '—'}</span><span className="bc-label">Colpo migliore</span></div>
+              <div className="bento-cell" style={{cursor:'default'}}><span className="bc-icon">🎯</span><span className="bc-value" style={{fontSize:13, color:'var(--danger)'}}>{shotAggregate?.worst?.net < 0 ? shotAggregate.worst.label : '—'}</span><span className="bc-label">Da migliorare</span></div>
             </div>
 
             {recentForSparkline.length >= 2 && (
-              <div style={{marginTop:18}}>
+              <div className="sparkline-wrap">
                 <div className="muted" style={{fontSize:12, marginBottom:6}}>Andamento voto — ultime {recentForSparkline.length} partite valutate</div>
                 <svg viewBox="0 0 300 60" style={{width:'100%', height:60}} preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.35"/>
+                      <stop offset="100%" stopColor="var(--accent)" stopOpacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon
+                    fill="url(#sparkFill)"
+                    points={
+                      recentForSparkline.map((m, i) => {
+                        const x = (i / (recentForSparkline.length - 1)) * 300;
+                        const y = 55 - ((m.coach_rating - 1) / 9) * 50;
+                        return `${x},${y}`;
+                      }).join(' ') + ` 300,60 0,60`
+                    }
+                  />
                   <polyline
                     fill="none" stroke="var(--accent)" strokeWidth="2"
                     points={recentForSparkline.map((m, i) => {
@@ -364,7 +393,11 @@ export default function AthleteMatches() {
       </div>
 
       <div className="card">
-        <h2 style={{fontSize:17}}>🎯 Obiettivi <span className="muted" style={{fontSize:13, fontWeight:400}}>({activeGoals.length}/3 attivi)</span></h2>
+        <div className="section-title-row">
+          <div className="icon-badge gold">🎯</div>
+          <h2>Obiettivi</h2>
+          <span className="stc">{activeGoals.length}/3 attivi</span>
+        </div>
 
         {activeGoals.length === 0 && <p className="muted" style={{marginTop:8, marginBottom:12}}>Nessun obiettivo attivo — aggiungine uno qui sotto.</p>}
         {activeGoals.map(g => (
@@ -415,10 +448,14 @@ export default function AthleteMatches() {
       </div>
 
       <div className="card">
-        <h2 style={{fontSize:17}}>🎾 Partite registrate <span className="muted" style={{fontSize:13, fontWeight:400}}>({matches.length})</span></h2>
+        <div className="section-title-row">
+          <div className="icon-badge blue">🎾</div>
+          <h2>Partite registrate</h2>
+          <span className="stc">{matches.length}</span>
+        </div>
         {matches.length === 0 && <p className="muted" style={{marginTop:8}}>Nessuna partita registrata ancora.</p>}
         {matches.map(m => (
-          <Link key={m.id} href={`/dashboard/athlete/${params.id}/match/${m.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
+          <Link key={m.id} href={`/dashboard/athlete/${params.id}/match/${m.id}`} className="list-item list-item-v3" style={{textDecoration:'none', color:'inherit'}}>
             <div className="li-text">
               <div className="li-title">
                 {m.meta?.torneo ? m.meta.torneo + ' · ' : ''}{m.meta?.data}
@@ -432,13 +469,17 @@ export default function AthleteMatches() {
       </div>
 
       <div className="card">
-        <h2 style={{fontSize:17}}>🎯 Allenamenti <span className="muted" style={{fontSize:13, fontWeight:400}}>({trainingSessions.length})</span></h2>
+        <div className="section-title-row">
+          <div className="icon-badge gold">🎯</div>
+          <h2>Allenamenti</h2>
+          <span className="stc">{trainingSessions.length}</span>
+        </div>
         {trainingSessions.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allenamento registrato ancora.</p>}
         {trainingSessions.map(t => {
           const ep = t.episodes || [];
           const riusciti = ep.filter(e => e.result === 'riuscito').length;
           return (
-            <Link key={t.id} href={`/dashboard/athlete/${params.id}/training/${t.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
+            <Link key={t.id} href={`/dashboard/athlete/${params.id}/training/${t.id}`} className="list-item list-item-v3" style={{textDecoration:'none', color:'inherit'}}>
               <div className="li-text">
                 <div className="li-title">
                   {SHOT_LABELS[t.shot_type] || t.shot_type}
