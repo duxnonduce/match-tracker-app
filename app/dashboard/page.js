@@ -63,6 +63,7 @@ export default function Dashboard() {
   const [showInactive, setShowInactive] = useState(false);
   const [reactivating, setReactivating] = useState(null);
   const [matchCount, setMatchCount] = useState(0);
+  const [activeTab, setActiveTab] = useState('allievi'); // 'allievi' | 'abbonamento' — solo per il layout, nessuna logica esistente tocca questo
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -293,25 +294,38 @@ export default function Dashboard() {
 
   return (
     <div className="wrap">
-      <div className="app-header">
-        <div className="brand">
-          <div className="avatar lg">{initials(coachDisplayName)}</div>
-          <div>
+      <div className="topbar-slim">
+        <div className="who">
+          <div className="avatar">{initials(coachDisplayName)}</div>
+          <div className="who-text">
             <h1>{coachDisplayName || 'Il mio profilo'}</h1>
             <div className="sub">{coach?.academy_name || 'Maestro di tennis'}{coach?.academy_city ? ' · ' + coach.academy_city : ''}</div>
           </div>
         </div>
-        <button className="btn secondary" onClick={handleLogout}>Esci</button>
+        <button className="icon-btn" onClick={handleLogout} title="Esci">⏻</button>
       </div>
 
-      {pushStatus && <p className="muted" style={{marginTop:-10, marginBottom:14, fontSize:12.5}}>{pushStatus}</p>}
-      {!pushStatus && (
-        <button className="btn secondary block" style={{marginTop:-10, marginBottom:14}} onClick={handleEnablePush}>
-          🔔 Attiva notifiche (bozze da pubblicare, abbonamento...)
-        </button>
-      )}
+      <div className="status-strip">
+        {coach && (
+          <span
+            className={'status-pill' + (coach.subscription_status !== 'active' ? ' warn' : '')}
+            onClick={()=>setActiveTab('abbonamento')}
+          >
+            <span className="dot" style={{background: statusInfo.color}}></span>
+            {currentPlan?.icon || '🎾'} {coach.plan_tier} · {statusInfo.label}
+          </span>
+        )}
+        {coach?.subscription_status === 'active' && (
+          <span className="status-pill" onClick={()=>setActiveTab('abbonamento')}>
+            📊 {matchCount}{coach.match_quota != null ? `/${coach.match_quota}` : ''} partite/mese
+          </span>
+        )}
+        <span className="status-pill" onClick={handleEnablePush} style={{marginLeft:'auto'}}>
+          {pushStatus || '🔔 Attiva notifiche'}
+        </span>
+      </div>
 
-      {coach && coach.subscription_status !== 'active' && !showPlanSwitch ? (
+      {coach && coach.subscription_status !== 'active' ? (
         <div className="card">
           <h2 style={{fontSize:17}}>💳 {coach.subscription_status === 'inactive' ? 'Scegli un pacchetto per iniziare' : 'Il tuo abbonamento non è attivo'}</h2>
           {coach.subscription_status !== 'inactive' && (
@@ -334,6 +348,12 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
+          <div className="tab-bar">
+            <button className={'tab-btn' + (activeTab==='allievi' ? ' active' : '')} onClick={()=>setActiveTab('allievi')}>👥 Allievi</button>
+            <button className={'tab-btn' + (activeTab==='abbonamento' ? ' active' : '')} onClick={()=>setActiveTab('abbonamento')}>💳 Abbonamento</button>
+          </div>
+
+          {activeTab === 'abbonamento' && (
           <div className="card">
             <div className="row">
               <div>
@@ -404,7 +424,10 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          )}
 
+          {activeTab === 'allievi' && (
+          <>
           <div className="card">
             <div className="row" style={{marginBottom: showAthleteForm ? 16 : 0}}>
               <h2 style={{fontSize:17}}>➕ Aggiungi un allievo</h2>
@@ -490,18 +513,18 @@ export default function Dashboard() {
             )}
             {athletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo ancora — aggiungine uno qui sopra.</p>}
             {athletes.length > 0 && filteredAthletes.length === 0 && <p className="muted" style={{marginTop:8}}>Nessun allievo trovato per "{athleteSearch}".</p>}
-            {filteredAthletes.map(a => (
-              <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="list-item" style={{textDecoration:'none', color:'inherit'}}>
-                <div className="li-main">
+            <div className="athlete-grid">
+              {filteredAthletes.map(a => (
+                <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="athlete-card">
                   <div className="avatar">{initials(a.full_name)}</div>
                   <div className="li-text">
                     <div className="li-title">{a.full_name}</div>
                     {a.birth_date && <div className="li-sub">Nato/a il {new Date(a.birth_date).toLocaleDateString('it-IT')}</div>}
                   </div>
-                </div>
-                <span className="muted">→</span>
-              </Link>
-            ))}
+                  <span className="muted">→</span>
+                </Link>
+              ))}
+            </div>
           </div>
 
           {inactiveAthletes.length > 0 && (
@@ -518,6 +541,8 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+          )}
+          </>
           )}
         </>
       )}
