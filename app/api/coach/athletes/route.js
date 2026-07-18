@@ -39,14 +39,14 @@ export async function POST(request) {
   // gli allievi: vedi il trigger check_match_quota() sul database).
   const { data: coach, error: coachErr } = await getSupabaseAdmin()
     .from('academies')
-    .select('subscription_status')
+    .select('subscription_status, admin_status')
     .eq('id', academyId)
     .single();
 
   if (coachErr || !coach) {
     return Response.json({ error: 'Maestro non trovato' }, { status: 404 });
   }
-  if (coach.subscription_status !== 'active') {
+  if (coach.subscription_status !== 'active' || coach.admin_status !== 'active') {
     return Response.json({ error: 'Abbonamento non attivo: rinnova per aggiungere allievi.' }, { status: 402 });
   }
 

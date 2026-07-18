@@ -50,14 +50,44 @@ create table academies (
   renewal_reminder_sent_at timestamptz,
   terms_accepted_at timestamptz,
 
+  -- Pannello amministrativo della piattaforma (vedi tabella platform_admins)
+  admin_status text not null default 'active' check (admin_status in ('active', 'suspended', 'blocked')),
+  internal_notes text,
+  is_manual_override boolean default false,
+  manual_override_reason text,
+
   created_at timestamptz default now()
 );
 
+-- ------------------------------------------------------------
+-- TABELLA: platform_admins (pannello di controllo generale — separato
+-- dalle Academy, accessibile solo a chi gestisce la piattaforma)
+-- ------------------------------------------------------------
+create table platform_admins (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  full_name text,
+  created_at timestamptz default now()
+);
+
+alter table platform_admins enable row level security;
+
+create policy "admin reads own row"
+  on platform_admins for select
+  using (id = auth.uid());
+
 -- trigger: quando ci si registra via Supabase Auth, crea automaticamente
--- la riga academy, leggendo i dati passati come metadata dal form.
+-- la riga academy, leggendo i dati passati come metadata dal form. Fa
+-- eccezione per la creazione di un amministratore della piattaforma
+-- (vedi /api/admin/bootstrap): in quel caso NON va creata nessuna riga
+-- Academy, ce ne occupiamo separatamente in quella route.
 create function public.handle_new_coach()
 returns trigger as $$
 begin
+  if (new.raw_user_meta_data->>'account_type') = 'platform_admin' then
+    return new;
+  end if;
+
   insert into public.academies (
     id, email, academy_name, academy_city, academy_address, terms_accepted_at,
     ragione_sociale, partita_iva, codice_fiscale_azienda, codice_sdi, pec,

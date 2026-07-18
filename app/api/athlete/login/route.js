@@ -46,11 +46,11 @@ export async function POST(request) {
   // disdetto), blocchiamo l'accesso anche ai suoi allievi.
   const { data: coach } = await getSupabaseAdmin()
     .from('academies')
-    .select('subscription_status')
+    .select('subscription_status, admin_status')
     .eq('id', match.academy_id)
     .single();
 
-  if (!coach || coach.subscription_status !== 'active') {
+  if (!coach || coach.subscription_status !== 'active' || coach.admin_status !== 'active') {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo. Contattalo per maggiori informazioni.' }, { status: 403 });
   }
 

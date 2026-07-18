@@ -377,7 +377,12 @@ export default function Dashboard() {
         <span className="nr-arrow">›</span>
       </div>
 
-      {coach && coach.subscription_status !== 'active' ? (
+      {coach && coach.admin_status !== 'active' ? (
+        <div className="card">
+          <h2 style={{fontSize:17, color:'var(--danger)'}}>⛔ Accesso {coach.admin_status === 'suspended' ? 'sospeso' : 'bloccato'}</h2>
+          <p className="error">Il tuo account è stato {coach.admin_status === 'suspended' ? 'temporaneamente sospeso' : 'bloccato'} dall'amministrazione. Contatta l'assistenza per maggiori informazioni.</p>
+        </div>
+      ) : coach && coach.subscription_status !== 'active' ? (
         <div className="card">
           <h2 style={{fontSize:17}}>💳 {coach.subscription_status === 'inactive' ? 'Scegli un pacchetto per iniziare' : 'Il tuo abbonamento non è attivo'}</h2>
           {coach.subscription_status !== 'inactive' && (
