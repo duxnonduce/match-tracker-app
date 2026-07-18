@@ -49,6 +49,7 @@ export default function AdminOverviewPage() {
       <div className="tab-bar-v4" style={{marginBottom:16}}>
         <Link href="/admin" className="tab-btn-v4 active">📊 Panoramica</Link>
         <Link href="/admin/academies" className="tab-btn-v4">🏫 Academy</Link>
+        <Link href="/admin/revenue" className="tab-btn-v4">💰 Incassi</Link>
       </div>
 
       <div className="card">

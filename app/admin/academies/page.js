@@ -44,7 +44,13 @@ export default function AdminAcademiesListPage() {
     <div className="wrap">
       <Link href="/admin" className="muted">← Panoramica</Link>
 
-      <div className="card" style={{marginTop:14}}>
+      <div className="tab-bar-v4" style={{marginTop:14, marginBottom:16}}>
+        <Link href="/admin" className="tab-btn-v4">📊 Panoramica</Link>
+        <Link href="/admin/academies" className="tab-btn-v4 active">🏫 Academy</Link>
+        <Link href="/admin/revenue" className="tab-btn-v4">💰 Incassi</Link>
+      </div>
+
+      <div className="card">
         <div className="row">
           <h2 style={{fontSize:17}}>🏫 Academy <span className="muted" style={{fontSize:13, fontWeight:400}}>({academies.length})</span></h2>
           <Link href="/admin/academies/new" className="btn secondary">➕ Nuova Academy</Link>
