@@ -67,6 +67,7 @@ export default function CoachMatchDetail() {
         coach_worked_well: workedWell.trim() || null,
         coach_to_improve: toImprove.trim() || null,
         coach_next_goal: nextGoal.trim() || null,
+        ai_commentary: aiCommentary.trim() || null,
         published_to_athlete: publishNow,
       };
       const { error } = await supabase.from('matches').update(update).eq('id', params.matchId);
@@ -159,23 +160,27 @@ export default function CoachMatchDetail() {
           </div>
 
           <div className="card">
-            <h2 style={{fontSize:16}}>🤖 Analisi tecnica AI</h2>
-            <p className="muted" style={{marginBottom:12}}>
-              Un commento tattico generato dall'intelligenza artificiale, basato solo sui dati registrati in questa partita. Ogni generazione consuma credito sulla tua chiave OpenAI.
-            </p>
+            <h2 style={{fontSize:16}}>📊 Analisi tecnica <span className="muted" style={{fontSize:11.5, fontWeight:400}}>— AI, supervisionata dal maestro</span></h2>
             {record.log && record.log.length < 10 ? (
-              <p className="field-hint">Servono almeno 10 episodi registrati per generarlo (ce ne sono {record.log?.length || 0}).</p>
-            ) : (
+              <p className="field-hint">Servono almeno 10 episodi registrati per generarla (ce ne sono {record.log?.length || 0}).</p>
+            ) : !aiCommentary ? (
               <>
-                {aiCommentary && (
-                  <div style={{background:'var(--surface2)', borderRadius:10, padding:'14px 16px', marginBottom:12, lineHeight:1.6, fontSize:14}}>
-                    {aiCommentary}
-                  </div>
-                )}
+                <p className="muted" style={{marginBottom:12}}>Non ancora generata per questa partita.</p>
                 <button className="btn secondary" disabled={aiGenerating} onClick={handleGenerateAI}>
-                  {aiGenerating ? 'Generazione in corso…' : aiCommentary ? '🔄 Rigenera commento' : '✨ Genera commento AI'}
+                  {aiGenerating ? 'Generazione in corso…' : '✨ Genera analisi tecnica'}
                 </button>
                 {aiError && <p className="error" style={{marginTop:8}}>{aiError}</p>}
+              </>
+            ) : (
+              <>
+                <textarea
+                  className="textarea"
+                  rows={10}
+                  value={aiCommentary}
+                  onChange={e=>setAiCommentary(e.target.value)}
+                  style={{lineHeight:1.6}}
+                />
+                <p className="field-hint">Puoi correggere o perfezionare il testo prima di pubblicarlo — verrà salvato insieme al resto del report quando premi "Salva bozza" o "Pubblica" qui sopra.</p>
               </>
             )}
           </div>
