@@ -19,21 +19,21 @@ function getSupabaseAdmin() {
 const MIN_EPISODES = 10; // stessa soglia dell'analisi automatica: sotto questa, il commento sarebbe inaffidabile
 
 export async function POST(request) {
-  const { matchId, coachId } = await request.json();
-  if (!matchId || !coachId) {
+  const { matchId, academyId } = await request.json();
+  if (!matchId || !academyId) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
 
   const { data: match, error } = await getSupabaseAdmin()
     .from('matches')
-    .select('meta, stats, log, match, coach_id')
+    .select('meta, stats, log, match, academy_id')
     .eq('id', matchId)
     .single();
 
   if (error || !match) {
     return Response.json({ error: 'Partita non trovata' }, { status: 404 });
   }
-  if (match.coach_id !== coachId) {
+  if (match.academy_id !== academyId) {
     return Response.json({ error: 'Non autorizzato' }, { status: 403 });
   }
   if (!match.log || match.log.length < MIN_EPISODES) {

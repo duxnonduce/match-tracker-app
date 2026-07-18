@@ -33,7 +33,7 @@ export async function GET(request) {
   const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
   const { data: coaches, error } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('id, email, first_name, plan_tier, current_period_end, renewal_reminder_sent_at')
     .eq('subscription_status', 'active')
     .eq('cancel_at_period_end', false) // chi ha già annullato non deve ricevere "sta per rinnovarsi"
@@ -55,7 +55,7 @@ export async function GET(request) {
         planLabel: PLAN_LABELS[coach.plan_tier] || coach.plan_tier,
         periodEndFormatted: formatDateIt(coach.current_period_end),
       });
-      await getSupabaseAdmin().from('coaches').update({ renewal_reminder_sent_at: new Date().toISOString() }).eq('id', coach.id);
+      await getSupabaseAdmin().from('academies').update({ renewal_reminder_sent_at: new Date().toISOString() }).eq('id', coach.id);
       sent++;
     } catch (e) {
       console.warn('invio promemoria fallito per', coach.id, e);

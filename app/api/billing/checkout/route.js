@@ -3,6 +3,7 @@
 // e viene mandato alla pagina di pagamento ospitata da Stripe.
 
 import Stripe from 'stripe';
+import { requireAdmin } from '../../../../lib/staffAuth';
 
 let _stripe = null;
 function getStripe() {
@@ -29,7 +30,12 @@ export async function POST(request) {
     return Response.json({ error: 'APP_URL non configurata sul server' }, { status: 500 });
   }
 
-  const { coachId, coachEmail, plan } = await request.json();
+  const { academyId, coachEmail, plan } = await request.json();
+
+  const staff = requireAdmin(request, academyId);
+  if (!staff) {
+    return Response.json({ error: 'Solo il Super Operatore può gestire l\'abbonamento.' }, { status: 403 });
+  }
 
   const priceId = PRICE_IDS[plan];
   if (!priceId) {
@@ -41,10 +47,10 @@ export async function POST(request) {
       mode: 'subscription',
       customer_email: coachEmail,
       line_items: [{ price: priceId, quantity: 1 }],
-      // Passiamo coachId e piano nei metadata: li leggeremo nel webhook
+      // Passiamo academyId e piano nei metadata: li leggeremo nel webhook
       // per sapere a chi assegnare l'abbonamento.
-      metadata: { coachId, plan },
-      subscription_data: { metadata: { coachId, plan } },
+      metadata: { academyId, plan },
+      subscription_data: { metadata: { academyId, plan } },
       success_url: `${process.env.APP_URL}/dashboard?checkout=success`,
       cancel_url: `${process.env.APP_URL}/dashboard?checkout=cancel`,
     });

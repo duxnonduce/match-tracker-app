@@ -29,7 +29,7 @@ export async function POST(request) {
   // iniziare, questo approccio semplice va benissimo.
   const { data: athletes, error } = await getSupabaseAdmin()
     .from('athletes')
-    .select('id, coach_id, full_name, pin_hash, active')
+    .select('id, academy_id, full_name, pin_hash, active')
     .eq('active', true);
 
   if (error) {
@@ -45,9 +45,9 @@ export async function POST(request) {
   // Se il maestro non ha un abbonamento attivo (scaduto, pagamento fallito,
   // disdetto), blocchiamo l'accesso anche ai suoi allievi.
   const { data: coach } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('subscription_status')
-    .eq('id', match.coach_id)
+    .eq('id', match.academy_id)
     .single();
 
   if (!coach || coach.subscription_status !== 'active') {
@@ -57,7 +57,7 @@ export async function POST(request) {
   // Token firmato con un segreto TUO (diverso dalle chiavi Supabase),
   // valido per 12 ore. Contiene solo ciò che serve per capire chi è.
   const token = jwt.sign(
-    { athleteId: match.id, coachId: match.coach_id, role: 'athlete' },
+    { athleteId: match.id, academyId: match.academy_id, role: 'athlete' },
     process.env.ATHLETE_JWT_SECRET,
     { expiresIn: '12h' }
   );

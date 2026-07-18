@@ -26,7 +26,7 @@ export async function GET(request) {
 
   // 1) maestri con abbonamento in ritardo di pagamento
   const { data: pastDueCoaches } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('id')
     .eq('subscription_status', 'past_due');
 
@@ -42,18 +42,18 @@ export async function GET(request) {
 
   // 2) maestri con bozze (partite/allenamenti/obiettivi) vecchie di 2+ giorni
   const [{ data: draftMatches }, { data: draftTrainings }, { data: draftGoals }] = await Promise.all([
-    getSupabaseAdmin().from('matches').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
-    getSupabaseAdmin().from('training_sessions').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
-    getSupabaseAdmin().from('athlete_goals').select('coach_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('matches').select('academy_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('training_sessions').select('academy_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
+    getSupabaseAdmin().from('athlete_goals').select('academy_id').eq('published_to_athlete', false).lte('created_at', twoDaysAgo),
   ]);
 
   const draftCounts = {};
   for (const row of [...(draftMatches || []), ...(draftTrainings || []), ...(draftGoals || [])]) {
-    draftCounts[row.coach_id] = (draftCounts[row.coach_id] || 0) + 1;
+    draftCounts[row.academy_id] = (draftCounts[row.academy_id] || 0) + 1;
   }
 
-  for (const [coachId, count] of Object.entries(draftCounts)) {
-    await sendPushToOwner('coach', coachId, {
+  for (const [academyId, count] of Object.entries(draftCounts)) {
+    await sendPushToOwner('coach', academyId, {
       title: '📝 Bozze in attesa',
       body: `Hai ${count} tra partite, allenamenti e obiettivi non ancora pubblicati per i tuoi allievi.`,
       url: '/dashboard',

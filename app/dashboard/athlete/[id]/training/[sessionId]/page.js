@@ -34,6 +34,7 @@ export default function CoachTrainingDetail() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      if (!localStorage.getItem('staff_token')) { router.push('/pin'); return; }
 
       const { data, error: err } = await supabase
         .from('training_sessions')

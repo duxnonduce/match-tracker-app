@@ -25,7 +25,7 @@ export async function POST(request) {
 
   const { data: session, error } = await getSupabaseAdmin()
     .from('training_sessions')
-    .select('shot_type, published_to_athlete, athlete_id, coach_id')
+    .select('shot_type, published_to_athlete, athlete_id, academy_id')
     .eq('id', sessionId)
     .single();
 
@@ -35,7 +35,7 @@ export async function POST(request) {
 
   const [{ data: athlete }, { data: coach }] = await Promise.all([
     getSupabaseAdmin().from('athletes').select('email, full_name').eq('id', session.athlete_id).single(),
-    getSupabaseAdmin().from('coaches').select('first_name, last_name, academy_name').eq('id', session.coach_id).single(),
+    getSupabaseAdmin().from('academies').select('first_name, last_name, academy_name').eq('id', session.academy_id).single(),
   ]);
 
   const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');

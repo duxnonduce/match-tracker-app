@@ -5,6 +5,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '../../../../lib/staffAuth';
 
 let _stripe = null;
 function getStripe() {
@@ -47,7 +48,12 @@ function getPeriodStart(sub) {
 }
 
 export async function POST(request) {
-  const { coachId, newPlan } = await request.json();
+  const { academyId, newPlan } = await request.json();
+
+  const staff = requireAdmin(request, academyId);
+  if (!staff) {
+    return Response.json({ error: 'Solo il Super Operatore può gestire l\'abbonamento.' }, { status: 403 });
+  }
 
   const priceId = PRICE_IDS[newPlan];
   if (!priceId) {
@@ -55,9 +61,9 @@ export async function POST(request) {
   }
 
   const { data: coach, error: coachErr } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('stripe_subscription_id, plan_tier, current_period_start')
-    .eq('id', coachId)
+    .eq('id', academyId)
     .single();
 
   if (coachErr || !coach || !coach.stripe_subscription_id) {
@@ -72,7 +78,7 @@ export async function POST(request) {
   // registrate NEL MESE CORRENTE non superino la nuova quota, altrimenti
   // resteresti bloccato subito senza poterne registrare altre.
   if (effectiveQuota(newPlan) < effectiveQuota(coach.plan_tier)) {
-    let query = getSupabaseAdmin().from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
+    let query = getSupabaseAdmin().from('matches').select('*', { count: 'exact', head: true }).eq('academy_id', academyId);
     if (coach.current_period_start) query = query.gte('created_at', coach.current_period_start);
     const { count } = await query;
     if (count > MATCH_QUOTA_BY_PLAN[newPlan]) {
@@ -90,7 +96,7 @@ export async function POST(request) {
     const updated = await getStripe().subscriptions.update(coach.stripe_subscription_id, {
       items: [{ id: itemId, price: priceId }],
       proration_behavior: 'create_prorations',
-      metadata: { coachId, plan: newPlan },
+      metadata: { academyId, plan: newPlan },
       expand: ['items'],
     });
 
@@ -99,13 +105,13 @@ export async function POST(request) {
 
     // Aggiorniamo subito anche noi (il webhook arriverà comunque a
     // confermare, ma così l'interfaccia si aggiorna all'istante).
-    await getSupabaseAdmin().from('coaches').update({
+    await getSupabaseAdmin().from('academies').update({
       plan_tier: newPlan,
       match_quota: MATCH_QUOTA_BY_PLAN[newPlan],
       subscription_status: updated.status,
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
       current_period_start: periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null,
-    }).eq('id', coachId);
+    }).eq('id', academyId);
 
     return Response.json({ ok: true, plan: newPlan });
   } catch (err) {

@@ -55,6 +55,7 @@ export default function AthleteMatches() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      if (!localStorage.getItem('staff_token')) { router.push('/pin'); return; }
       setSession(session);
 
       const { data: athleteRow } = await supabase.from('athletes').select('*').eq('id', params.id).single();
@@ -132,8 +133,10 @@ export default function AthleteMatches() {
     setGoalBusy(true);
     try {
       const { error } = await supabase.from('athlete_goals').insert({
-        coach_id: session.user.id,
+        academy_id: session.user.id,
         athlete_id: params.id,
+        staff_id: localStorage.getItem('staff_id') || null,
+        recorded_by_name: localStorage.getItem('staff_name') || null,
         title: newGoalTitle.trim(),
       });
       if (error) throw error;
@@ -203,7 +206,7 @@ export default function AthleteMatches() {
       const res = await fetch(`/api/coach/athletes/${params.id}/regenerate-pin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id }),
+        body: JSON.stringify({ academyId: session.user.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');

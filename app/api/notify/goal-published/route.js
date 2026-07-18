@@ -21,7 +21,7 @@ export async function POST(request) {
 
   const { data: goal, error } = await getSupabaseAdmin()
     .from('athlete_goals')
-    .select('title, published_to_athlete, athlete_id, coach_id')
+    .select('title, published_to_athlete, athlete_id, academy_id')
     .eq('id', goalId)
     .single();
 
@@ -30,7 +30,7 @@ export async function POST(request) {
   }
 
   const { data: coach } = await getSupabaseAdmin()
-    .from('coaches').select('first_name, last_name, academy_name').eq('id', goal.coach_id).single();
+    .from('academies').select('first_name, last_name, academy_name').eq('id', goal.academy_id).single();
   const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');
 
   const result = await sendPushToOwner('athlete', goal.athlete_id, {

@@ -3,6 +3,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '../../../../lib/staffAuth';
 
 let _stripe = null;
 function getStripe() {
@@ -20,16 +21,21 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(request) {
-  const { coachId, action } = await request.json();
+  const { academyId, action } = await request.json();
+
+  const staff = requireAdmin(request, academyId);
+  if (!staff) {
+    return Response.json({ error: 'Solo il Super Operatore può gestire l\'abbonamento.' }, { status: 403 });
+  }
 
   if (!['cancel', 'reactivate'].includes(action)) {
     return Response.json({ error: 'Azione non valida' }, { status: 400 });
   }
 
   const { data: coach, error: coachErr } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('stripe_subscription_id')
-    .eq('id', coachId)
+    .eq('id', academyId)
     .single();
 
   if (coachErr || !coach || !coach.stripe_subscription_id) {
@@ -42,10 +48,10 @@ export async function POST(request) {
       cancel_at_period_end: cancelAtPeriodEnd,
     });
 
-    await getSupabaseAdmin().from('coaches').update({
+    await getSupabaseAdmin().from('academies').update({
       cancel_at_period_end: cancelAtPeriodEnd,
       subscription_status: updated.status,
-    }).eq('id', coachId);
+    }).eq('id', academyId);
 
     return Response.json({ ok: true, cancelAtPeriodEnd });
   } catch (err) {

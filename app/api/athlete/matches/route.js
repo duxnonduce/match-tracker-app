@@ -21,7 +21,7 @@ function getAthleteFromToken(request) {
   try {
     const payload = jwt.verify(token, process.env.ATHLETE_JWT_SECRET);
     if (payload.role !== 'athlete') return null;
-    return payload; // { athleteId, coachId, role }
+    return payload; // { athleteId, academyId, role }
   } catch (e) {
     return null; // token scaduto o non valido
   }
@@ -34,9 +34,9 @@ export async function GET(request) {
   }
 
   const { data: coach } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('subscription_status')
-    .eq('id', athlete.coachId)
+    .eq('id', athlete.academyId)
     .single();
   if (!coach || coach.subscription_status !== 'active') {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
@@ -48,7 +48,7 @@ export async function GET(request) {
   // ancora "rilasciato" (bozze con eventuale valutazione non finita).
   const { data, error } = await getSupabaseAdmin()
     .from('matches')
-    .select('id, meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, ai_commentary, created_at')
+    .select('id, meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, ai_commentary, recorded_by_name, created_at')
     .eq('athlete_id', athlete.athleteId)
     .eq('published_to_athlete', true)
     .order('created_at', { ascending: false });

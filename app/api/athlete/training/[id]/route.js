@@ -31,9 +31,9 @@ export async function GET(request, { params }) {
   }
 
   const { data: coach } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('subscription_status')
-    .eq('id', athlete.coachId)
+    .eq('id', athlete.academyId)
     .single();
   if (!coach || coach.subscription_status !== 'active') {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });

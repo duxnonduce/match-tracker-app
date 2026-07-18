@@ -54,6 +54,7 @@ function TrainingInner() {
       if (!athleteId) { setLoadErr('Nessun allievo selezionato.'); return; }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      if (!localStorage.getItem('staff_token')) { router.push('/pin'); return; }
       setSession(session);
       const { data: a, error } = await supabase.from('athletes').select('id, full_name').eq('id', athleteId).single();
       if (error || !a) { setLoadErr('Allievo non trovato.'); return; }
@@ -91,8 +92,10 @@ function TrainingInner() {
     setSaveMsg('');
     try {
       const { data: inserted, error } = await supabase.from('training_sessions').insert({
-        coach_id: session.user.id,
+        academy_id: session.user.id,
         athlete_id: athleteId,
+        staff_id: localStorage.getItem('staff_id') || null,
+        recorded_by_name: localStorage.getItem('staff_name') || null,
         shot_type: shotType,
         started_at: new Date(startedAt).toISOString(),
         ended_at: new Date().toISOString(),

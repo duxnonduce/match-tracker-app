@@ -9,6 +9,7 @@
 
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '../../../../lib/staffAuth';
 
 let _stripe = null;
 function getStripe() {
@@ -26,12 +27,17 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(request) {
-  const { coachId } = await request.json();
+  const { academyId } = await request.json();
+
+  const staff = requireAdmin(request, academyId);
+  if (!staff) {
+    return Response.json({ error: 'Solo il Super Operatore può gestire fatture e pagamento.' }, { status: 403 });
+  }
 
   const { data: coach, error } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('stripe_customer_id')
-    .eq('id', coachId)
+    .eq('id', academyId)
     .single();
 
   if (error || !coach || !coach.stripe_customer_id) {

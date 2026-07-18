@@ -16,19 +16,19 @@ function generatePin() {
 }
 
 export async function POST(request, { params }) {
-  const { coachId } = await request.json();
-  if (!coachId) {
+  const { academyId } = await request.json();
+  if (!academyId) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
 
   // Verifica che l'allievo appartenga davvero a questo maestro prima di toccarlo.
   const { data: athlete, error: findErr } = await getSupabaseAdmin()
     .from('athletes')
-    .select('id, coach_id, full_name')
+    .select('id, academy_id, full_name')
     .eq('id', params.id)
     .single();
 
-  if (findErr || !athlete || athlete.coach_id !== coachId) {
+  if (findErr || !athlete || athlete.academy_id !== academyId) {
     return Response.json({ error: 'Allievo non trovato' }, { status: 404 });
   }
 

@@ -1,55 +1,87 @@
 -- ============================================================
--- SCHEMA DATABASE — Match Tracker Tennis (Supabase / Postgres)
+-- SCHEMA DATABASE — PointLab (Supabase / Postgres)
 -- Da eseguire in: Supabase Dashboard → SQL Editor → New query
+-- Modello: l'account appartiene all'ACADEMY (una società sportiva),
+-- non al singolo maestro. Lo staff (i singoli maestri) accede con le
+-- stesse credenziali dell'Academy + un PIN personale — vedi tabella
+-- "staff" più sotto.
 -- ============================================================
 
 -- estensione per generare UUID
 create extension if not exists "pgcrypto";
 
 -- ------------------------------------------------------------
--- TABELLA: coaches (i maestri)
--- id = stesso id dell'utente in auth.users (Supabase Auth)
+-- TABELLA: academies (l'account che si registra e paga l'abbonamento)
+-- id = stesso id dell'utente in auth.users (Supabase Auth) — email e
+-- password sono UNICHE e condivise da tutto lo staff dell'Academy.
 -- ------------------------------------------------------------
-create table coaches (
+create table academies (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null,
-  full_name text,
-  first_name text,
-  last_name text,
-  phone text,
+
+  -- Nome/branding
   academy_name text,
   academy_city text,
   academy_address text,
+
+  -- Dati di fatturazione
+  ragione_sociale text,
+  partita_iva text,
+  codice_fiscale_azienda text,
+  codice_sdi text,
+  pec text,
+  indirizzo text,
+  comune text,
+  cap text,
+  provincia text,
+  nazione text default 'Italia',
+  email_amministrativa text,
+  telefono_amministrativo text,
+
+  -- Abbonamento
   stripe_customer_id text,
   stripe_subscription_id text,
-  plan_tier text default 'none',          -- 'none' | 'basic20' | 'plus50' | 'pro100'
-  athlete_quota int default 0,             -- non più usato per bloccare nulla (storico)
-  match_quota int,                          -- NULL = illimitato; altrimenti tetto di partite registrabili
+  plan_tier text default 'none',          -- 'none' | 'base10' | 'plus30' | 'pro50' | 'oro'
+  match_quota int,                         -- NULL = illimitato; altrimenti tetto di partite/mese
   subscription_status text default 'inactive', -- 'active' | 'past_due' | 'canceled' | 'inactive'
   current_period_end timestamptz,
   current_period_start timestamptz,
   cancel_at_period_end boolean default false,
   renewal_reminder_sent_at timestamptz,
   terms_accepted_at timestamptz,
+
   created_at timestamptz default now()
 );
 
--- trigger: quando un utente si registra via Supabase Auth, crea automaticamente la riga coach,
--- leggendo i dati anagrafici extra passati come metadata dal form di registrazione.
+-- trigger: quando ci si registra via Supabase Auth, crea automaticamente
+-- la riga academy, leggendo i dati passati come metadata dal form.
 create function public.handle_new_coach()
 returns trigger as $$
 begin
-  insert into public.coaches (id, email, first_name, last_name, phone, academy_name, academy_city, academy_address, terms_accepted_at)
+  insert into public.academies (
+    id, email, academy_name, academy_city, academy_address, terms_accepted_at,
+    ragione_sociale, partita_iva, codice_fiscale_azienda, codice_sdi, pec,
+    indirizzo, comune, cap, provincia, nazione, email_amministrativa, telefono_amministrativo
+  )
   values (
     new.id,
     new.email,
-    new.raw_user_meta_data->>'first_name',
-    new.raw_user_meta_data->>'last_name',
-    new.raw_user_meta_data->>'phone',
     new.raw_user_meta_data->>'academy_name',
     new.raw_user_meta_data->>'academy_city',
     new.raw_user_meta_data->>'academy_address',
-    (new.raw_user_meta_data->>'terms_accepted_at')::timestamptz
+    (new.raw_user_meta_data->>'terms_accepted_at')::timestamptz,
+    new.raw_user_meta_data->>'ragione_sociale',
+    new.raw_user_meta_data->>'partita_iva',
+    new.raw_user_meta_data->>'codice_fiscale_azienda',
+    new.raw_user_meta_data->>'codice_sdi',
+    new.raw_user_meta_data->>'pec',
+    new.raw_user_meta_data->>'indirizzo',
+    new.raw_user_meta_data->>'comune',
+    new.raw_user_meta_data->>'cap',
+    new.raw_user_meta_data->>'provincia',
+    coalesce(new.raw_user_meta_data->>'nazione', 'Italia'),
+    new.raw_user_meta_data->>'email_amministrativa',
+    new.raw_user_meta_data->>'telefono_amministrativo'
   );
   return new;
 end;
@@ -60,11 +92,39 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_coach();
 
 -- ------------------------------------------------------------
--- TABELLA: athletes (gli allievi)
+-- TABELLA: staff (i singoli maestri all'interno dell'Academy)
+-- Accedono con email+password dell'Academy (condivise) + il proprio
+-- PIN personale. role='admin' = Super Operatore (chi ha registrato
+-- l'Academy, di norma): unico che può gestire abbonamento/staff/dati
+-- fiscali. role='staff' = maestro normale.
+-- ------------------------------------------------------------
+create table staff (
+  id uuid primary key default gen_random_uuid(),
+  academy_id uuid not null references academies(id) on delete cascade,
+  full_name text not null,
+  pin_hash text not null,       -- hash bcrypt, MAI il PIN in chiaro
+  role text not null default 'staff' check (role in ('admin', 'staff')),
+  active boolean default true,
+  created_at timestamptz default now()
+);
+
+create index idx_staff_academy on staff(academy_id);
+
+alter table staff enable row level security;
+-- Nessuna policy diretta: tutto lo staff condivide la STESSA sessione
+-- Supabase Auth (quella dell'Academy), quindi Supabase da solo non può
+-- distinguere chi tra i maestri sta operando in un dato momento. Quella
+-- distinzione (e il controllo "è admin?") si fa lato server, verificando
+-- il PIN — per questo l'accesso alla tabella staff passa sempre da API
+-- con service_role key, mai dal client diretto.
+
+-- ------------------------------------------------------------
+-- TABELLA: athletes (gli allievi — appartengono all'Academy, non al
+-- singolo maestro: chiunque nello staff può cercarli/gestirli)
 -- ------------------------------------------------------------
 create table athletes (
   id uuid primary key default gen_random_uuid(),
-  coach_id uuid not null references coaches(id) on delete cascade,
+  academy_id uuid not null references academies(id) on delete cascade,
   full_name text not null,
   birth_date date,
   phone text,
@@ -82,16 +142,18 @@ create table athletes (
   created_at timestamptz default now()
 );
 
-create index idx_athletes_coach on athletes(coach_id);
+create index idx_athletes_academy on athletes(academy_id);
 
 -- ------------------------------------------------------------
--- TABELLA: matches (le partite registrate)
--- meta/stats/log/match = gli stessi oggetti già usati dall'app attuale (JSON)
+-- TABELLA: matches (le partite registrate — condivise nell'Academy,
+-- con staff_id per sapere quale maestro l'ha registrata/valutata)
 -- ------------------------------------------------------------
 create table matches (
   id uuid primary key default gen_random_uuid(),
-  coach_id uuid not null references coaches(id) on delete cascade,
+  academy_id uuid not null references academies(id) on delete cascade,
   athlete_id uuid not null references athletes(id) on delete cascade,
+  staff_id uuid references staff(id) on delete set null,
+  recorded_by_name text,
   meta jsonb not null,
   stats jsonb not null,
   log jsonb not null,
@@ -108,55 +170,51 @@ create table matches (
   created_at timestamptz default now()
 );
 
-create index idx_matches_coach on matches(coach_id);
+create index idx_matches_academy on matches(academy_id);
 create index idx_matches_athlete on matches(athlete_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
--- Regola generale: tutte le query dal browser passano SOLO per Supabase
--- Auth (il maestro). Gli allievi NON hanno un utente Supabase Auth: il loro
--- accesso passa dal tuo backend (che usa la service_role key e filtra
--- manualmente per athlete_id — vedi FASE 3 della guida). Quindi qui
--- serve proteggere solo il lato "maestro".
+-- Tutte le query dal browser passano per Supabase Auth (l'Academy).
+-- Poiché tutto lo staff condivide la stessa sessione, le policy RLS
+-- garantiscono che un'Academy veda solo i propri dati — la distinzione
+-- TRA i maestri (chi è admin, chi ha fatto cosa) si gestisce a livello
+-- applicativo/API, non con RLS, perché RLS non può vedere il PIN.
+-- Gli allievi NON hanno un utente Supabase Auth: il loro accesso passa
+-- dal backend (service_role key, filtro manuale per athlete_id).
 -- ============================================================
 
-alter table coaches enable row level security;
+alter table academies enable row level security;
 alter table athletes enable row level security;
 alter table matches enable row level security;
 
--- COACHES: un maestro vede/modifica solo la propria riga
-create policy "coach reads own row"
-  on coaches for select
+create policy "academy reads own row"
+  on academies for select
   using (id = auth.uid());
 
-create policy "coach updates own row"
-  on coaches for update
+create policy "academy updates own row"
+  on academies for update
   using (id = auth.uid());
 
--- ATHLETES: un maestro vede/gestisce solo i propri allievi
-create policy "coach manages own athletes"
+create policy "academy manages own athletes"
   on athletes for all
-  using (coach_id = auth.uid())
-  with check (coach_id = auth.uid());
+  using (academy_id = auth.uid())
+  with check (academy_id = auth.uid());
 
--- MATCHES: un maestro vede/gestisce solo le proprie partite
-create policy "coach manages own matches"
+create policy "academy manages own matches"
   on matches for all
-  using (coach_id = auth.uid())
-  with check (coach_id = auth.uid());
-
--- NB: non creiamo nessuna policy che permetta il SELECT diretto dal
--- browser agli allievi: il loro accesso passa sempre dalle tue API
--- (che usano la service_role key, la quale bypassa RLS di proposito
--- e applica il filtro "where athlete_id = ..." nel codice).
+  using (academy_id = auth.uid())
+  with check (academy_id = auth.uid());
 
 -- ------------------------------------------------------------
 -- TABELLA: training_sessions (sessioni di allenamento)
 -- ------------------------------------------------------------
 create table training_sessions (
   id uuid primary key default gen_random_uuid(),
-  coach_id uuid not null references coaches(id) on delete cascade,
+  academy_id uuid not null references academies(id) on delete cascade,
   athlete_id uuid not null references athletes(id) on delete cascade,
+  staff_id uuid references staff(id) on delete set null,
+  recorded_by_name text,
   shot_type text not null,
   started_at timestamptz not null,
   ended_at timestamptz,
@@ -170,23 +228,25 @@ create table training_sessions (
   created_at timestamptz default now()
 );
 
-create index idx_training_coach on training_sessions(coach_id);
+create index idx_training_academy on training_sessions(academy_id);
 create index idx_training_athlete on training_sessions(athlete_id);
 
 alter table training_sessions enable row level security;
 
-create policy "coach manages own training sessions"
+create policy "academy manages own training sessions"
   on training_sessions for all
-  using (coach_id = auth.uid())
-  with check (coach_id = auth.uid());
+  using (academy_id = auth.uid())
+  with check (academy_id = auth.uid());
 
 -- ------------------------------------------------------------
 -- TABELLA: athlete_goals (obiettivi tecnici strutturati)
 -- ------------------------------------------------------------
 create table athlete_goals (
   id uuid primary key default gen_random_uuid(),
-  coach_id uuid not null references coaches(id) on delete cascade,
+  academy_id uuid not null references academies(id) on delete cascade,
   athlete_id uuid not null references athletes(id) on delete cascade,
+  staff_id uuid references staff(id) on delete set null,
+  recorded_by_name text,
   title text not null,
   status text not null default 'in_corso',  -- 'in_corso' | 'raggiunto'
   published_to_athlete boolean default false,
@@ -194,22 +254,23 @@ create table athlete_goals (
   achieved_at timestamptz
 );
 
-create index idx_goals_coach on athlete_goals(coach_id);
+create index idx_goals_academy on athlete_goals(academy_id);
 create index idx_goals_athlete on athlete_goals(athlete_id);
 
 alter table athlete_goals enable row level security;
 
-create policy "coach manages own goals"
+create policy "academy manages own goals"
   on athlete_goals for all
-  using (coach_id = auth.uid())
-  with check (coach_id = auth.uid());
+  using (academy_id = auth.uid())
+  with check (academy_id = auth.uid());
 
 -- ------------------------------------------------------------
--- TABELLA: push_subscriptions (notifiche push)
+-- TABELLA: push_subscriptions (notifiche push — per singolo membro
+-- dello staff, non per l'Academy intera: ognuno ha il proprio telefono)
 -- ------------------------------------------------------------
 create table push_subscriptions (
   id uuid primary key default gen_random_uuid(),
-  owner_type text not null check (owner_type in ('coach','athlete')),
+  owner_type text not null check (owner_type in ('staff','athlete')),
   owner_id uuid not null,
   endpoint text not null unique,
   p256dh text not null,
@@ -233,17 +294,17 @@ declare
   current_count int;
 begin
   select match_quota, current_period_start into quota, period_start
-  from coaches where id = new.coach_id;
+  from academies where id = new.academy_id;
 
   if quota is not null then
     if period_start is null then
       current_count := 0;
     else
       select count(*) into current_count from matches
-      where coach_id = new.coach_id and created_at >= period_start;
+      where academy_id = new.academy_id and created_at >= period_start;
     end if;
     if current_count >= quota then
-      raise exception 'MATCH_QUOTA_EXCEEDED: limite di % partite del tuo pacchetto raggiunto per questo mese', quota;
+      raise exception 'MATCH_QUOTA_EXCEEDED: limite di % partite del pacchetto raggiunto per questo mese', quota;
     end if;
   end if;
   return new;

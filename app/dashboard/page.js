@@ -71,6 +71,8 @@ export default function Dashboard() {
   const [reactivating, setReactivating] = useState(null);
   const [matchCount, setMatchCount] = useState(0);
   const [activeTab, setActiveTab] = useState('allievi'); // 'allievi' | 'abbonamento' — solo per il layout, nessuna logica esistente tocca questo
+  const [staffName, setStaffName] = useState('');
+  const [staffRole, setStaffRole] = useState('staff');
 
   // dialog di conferma per il cambio pacchetto (con differenza prezzo)
   const [planChangeTarget, setPlanChangeTarget] = useState(null);
@@ -83,6 +85,10 @@ export default function Dashboard() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      const staffToken = localStorage.getItem('staff_token');
+      if (!staffToken) { router.push('/pin'); return; }
+      setStaffName(localStorage.getItem('staff_name') || '');
+      setStaffRole(localStorage.getItem('staff_role') || 'staff');
       setSession(session);
       await loadData(session.user.id);
       setLoading(false);
@@ -99,14 +105,14 @@ export default function Dashboard() {
     setCfWarning(valid ? '' : errors.join(' '));
   }, [newAthlete.fiscalCode, newAthlete.firstName, newAthlete.lastName, newAthlete.birthDate]);
 
-  async function loadData(coachId) {
-    const { data: coachRow } = await supabase.from('coaches').select('*').eq('id', coachId).single();
+  async function loadData(academyId) {
+    const { data: coachRow } = await supabase.from('academies').select('*').eq('id', academyId).single();
     setCoach(coachRow);
     if (coachRow && coachRow.subscription_status === 'active') {
       const { data: athleteRows } = await supabase
         .from('athletes')
         .select('*')
-        .eq('coach_id', coachId)
+        .eq('academy_id', academyId)
         .eq('active', true)
         .order('created_at', { ascending: false });
       setAthletes(athleteRows || []);
@@ -114,12 +120,12 @@ export default function Dashboard() {
       const { data: inactiveRows } = await supabase
         .from('athletes')
         .select('id, full_name')
-        .eq('coach_id', coachId)
+        .eq('academy_id', academyId)
         .eq('active', false)
         .order('created_at', { ascending: false });
       setInactiveAthletes(inactiveRows || []);
 
-      let matchCountQuery = supabase.from('matches').select('*', { count: 'exact', head: true }).eq('coach_id', coachId);
+      let matchCountQuery = supabase.from('matches').select('*', { count: 'exact', head: true }).eq('academy_id', academyId);
       if (coachRow.current_period_start) matchCountQuery = matchCountQuery.gte('created_at', coachRow.current_period_start);
       const { count: matchCountResult } = await matchCountQuery;
       setMatchCount(matchCountResult || 0);
@@ -130,8 +136,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, coachEmail: session.user.email, plan: planId }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id, coachEmail: session.user.email, plan: planId }),
       });
       const text = await res.text();
       let data;
@@ -151,8 +157,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/change-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, newPlan: planChangeTarget }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id, newPlan: planChangeTarget }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore cambio pacchetto');
@@ -172,8 +178,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/manage', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, action: 'cancel' }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id, action: 'cancel' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
@@ -192,8 +198,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/portal', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
@@ -209,8 +215,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
@@ -227,8 +233,8 @@ export default function Dashboard() {
     try {
       const res = await fetch('/api/billing/manage', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ coachId: session.user.id, action: 'reactivate' }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('staff_token')}` },
+        body: JSON.stringify({ academyId: session.user.id, action: 'reactivate' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
@@ -251,7 +257,7 @@ export default function Dashboard() {
     const res = await fetch('/api/coach/athletes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ coachId: session.user.id, ...newAthlete, parentalConsentConfirmed: true }),
+      body: JSON.stringify({ academyId: session.user.id, ...newAthlete, parentalConsentConfirmed: true }),
     });
     const data = await res.json();
     if (!res.ok) { setAddError(data.error || 'Errore'); return; }
@@ -262,8 +268,23 @@ export default function Dashboard() {
   }
 
   async function handleLogout() {
+    localStorage.removeItem('staff_token');
+    localStorage.removeItem('staff_id');
+    localStorage.removeItem('staff_name');
+    localStorage.removeItem('staff_role');
     await supabase.auth.signOut();
     router.push('/login');
+  }
+
+  function handleSwitchOperator() {
+    // Esce dal maestro corrente ma non dall'Academy: torna alla schermata
+    // PIN per farsi identificare di nuovo — comodo quando più maestri usano
+    // lo stesso dispositivo a turno (es. reception del circolo).
+    localStorage.removeItem('staff_token');
+    localStorage.removeItem('staff_id');
+    localStorage.removeItem('staff_name');
+    localStorage.removeItem('staff_role');
+    router.push('/pin');
   }
 
   async function handleReactivateAthlete(athleteId) {
@@ -283,7 +304,7 @@ export default function Dashboard() {
     setPushStatus('Attivazione…');
     const result = await enablePushNotifications({
       endpoint: '/api/push/subscribe-coach',
-      extraBody: { coachId: session.user.id },
+      extraBody: { academyId: session.user.id },
     });
     setPushStatus(result.ok ? '✅ Notifiche attive' : `⚠️ ${result.reason}`);
   }
@@ -295,7 +316,7 @@ export default function Dashboard() {
     ? athletes.filter(a => a.full_name.toLowerCase().includes(athleteSearch.trim().toLowerCase()))
     : athletes;
   const statusInfo = coach ? (STATUS_LABELS[coach.subscription_status] || STATUS_LABELS.inactive) : STATUS_LABELS.inactive;
-  const coachDisplayName = coach?.first_name ? `${coach.first_name} ${coach.last_name || ''}`.trim() : (coach?.email || '');
+  const coachDisplayName = coach?.academy_name || coach?.email || '';
   const currentPlan = PLANS.find(p => p.id === coach?.plan_tier);
   const targetPlan = PLANS.find(p => p.id === planChangeTarget);
 
@@ -308,7 +329,12 @@ export default function Dashboard() {
             <div className="who-text">
               <div className="greeting-caps">{greeting()}</div>
               <h1 style={{fontSize:20}}>{coachDisplayName || 'Il mio profilo'}</h1>
-              <div className="hh-sub">{coach?.academy_name || 'Maestro di tennis'}{coach?.academy_city ? ' · ' + coach.academy_city : ''}</div>
+              <div className="hh-sub">
+                {coach?.academy_city || 'Academy'} ·{' '}
+                <a style={{cursor:'pointer', textDecoration:'underline'}} onClick={handleSwitchOperator}>
+                  {staffName || 'Operatore'}{staffRole === 'admin' ? ' (Super Operatore)' : ''}
+                </a>
+              </div>
             </div>
           </div>
           <button className="icon-btn" onClick={handleLogout} title="Esci">⏻</button>
@@ -374,7 +400,18 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          {activeTab === 'abbonamento' && (
+          {activeTab === 'abbonamento' && staffRole !== 'admin' && (
+          <div className="card">
+            <a style={{cursor:'pointer', fontSize:13}} className="muted" onClick={()=>setActiveTab('allievi')}>← Torna agli allievi</a>
+            <div className="section-title-row" style={{marginTop:14}}>
+              <div className="icon-badge gold">🔒</div>
+              <h2>Accesso riservato</h2>
+            </div>
+            <p className="muted">Solo il Super Operatore dell'Academy può gestire l'abbonamento, lo staff e i dati amministrativi.</p>
+          </div>
+          )}
+
+          {activeTab === 'abbonamento' && staffRole === 'admin' && (
           <div className="card">
             <a style={{cursor:'pointer', fontSize:13}} className="muted" onClick={()=>setActiveTab('allievi')}>← Torna agli allievi</a>
             <div className="section-title-row" style={{marginTop:14}}>
@@ -451,6 +488,10 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+
+            <div style={{marginTop:20, paddingTop:16, borderTop:'1px solid var(--line)'}}>
+              <Link href="/dashboard/staff" className="btn secondary block">👥 Gestisci staff</Link>
+            </div>
           </div>
           )}
 

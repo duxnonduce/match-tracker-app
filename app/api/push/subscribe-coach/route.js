@@ -11,14 +11,14 @@ function getSupabaseAdmin() {
 }
 
 export async function POST(request) {
-  const { coachId, subscription } = await request.json();
-  if (!coachId || !subscription?.endpoint) {
+  const { academyId, subscription } = await request.json();
+  if (!academyId || !subscription?.endpoint) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
 
   const { error } = await getSupabaseAdmin().from('push_subscriptions').upsert({
     owner_type: 'coach',
-    owner_id: coachId,
+    owner_id: academyId,
     endpoint: subscription.endpoint,
     p256dh: subscription.keys.p256dh,
     auth: subscription.keys.auth,

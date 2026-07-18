@@ -63,7 +63,7 @@ export async function POST(request) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const { coachId, plan } = session.metadata;
+      const { academyId, plan } = session.metadata;
 
       // Recuperiamo la sottoscrizione per sapere inizio/fine periodo da
       // mettere nell'email e da usare per il conteggio mensile delle partite.
@@ -76,7 +76,7 @@ export async function POST(request) {
         periodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
       } catch (e) { /* non bloccante: mandiamo comunque l'email senza data se fallisce */ }
 
-      await getSupabaseAdmin().from('coaches').update({
+      await getSupabaseAdmin().from('academies').update({
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
         plan_tier: plan,
@@ -85,10 +85,10 @@ export async function POST(request) {
         current_period_end: periodEndIso,
         current_period_start: periodStartIso,
         renewal_reminder_sent_at: null, // reset: nuovo ciclo, nuovo eventuale promemoria
-      }).eq('id', coachId);
+      }).eq('id', academyId);
 
       try {
-        const { data: coach } = await getSupabaseAdmin().from('coaches').select('email, first_name').eq('id', coachId).single();
+        const { data: coach } = await getSupabaseAdmin().from('academies').select('email, first_name').eq('id', academyId).single();
         if (coach) {
           await sendSubscriptionConfirmedEmail({
             toEmail: coach.email,
@@ -119,7 +119,7 @@ export async function POST(request) {
       const newPeriodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
 
       const { data: existing } = await getSupabaseAdmin()
-        .from('coaches').select('current_period_end').eq('stripe_subscription_id', sub.id).single();
+        .from('academies').select('current_period_end').eq('stripe_subscription_id', sub.id).single();
       const periodRolledOver = existing && existing.current_period_end !== newPeriodEndIso;
 
       const update = {
@@ -138,13 +138,13 @@ export async function POST(request) {
       // ciclo di fatturazione, non ad ogni modifica minore della sottoscrizione.
       if (periodRolledOver) update.renewal_reminder_sent_at = null;
 
-      await getSupabaseAdmin().from('coaches').update(update).eq('stripe_subscription_id', sub.id);
+      await getSupabaseAdmin().from('academies').update(update).eq('stripe_subscription_id', sub.id);
       break;
     }
 
     case 'customer.subscription.deleted': {
       const sub = event.data.object;
-      await getSupabaseAdmin().from('coaches')
+      await getSupabaseAdmin().from('academies')
         .update({ subscription_status: 'canceled', match_quota: 0, cancel_at_period_end: false })
         .eq('stripe_subscription_id', sub.id);
       break;

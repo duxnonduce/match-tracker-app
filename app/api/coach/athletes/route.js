@@ -23,11 +23,11 @@ function generatePin() {
 
 export async function POST(request) {
   // In produzione: verifica il JWT Supabase del maestro dall'header
-  // Authorization e ricava coachId da lì (Supabase fornisce helper per
+  // Authorization e ricava academyId da lì (Supabase fornisce helper per
   // farlo sia in Next.js che in altri framework — vedi doc "Server-Side Auth").
-  const { coachId, firstName, lastName, birthDate, phone, email, notes, dominantHand, fiscalCode, parentalConsentConfirmed } = await request.json();
+  const { academyId, firstName, lastName, birthDate, phone, email, notes, dominantHand, fiscalCode, parentalConsentConfirmed } = await request.json();
 
-  if (!coachId || !firstName || !lastName) {
+  if (!academyId || !firstName || !lastName) {
     return Response.json({ error: 'Dati mancanti' }, { status: 400 });
   }
   if (!parentalConsentConfirmed) {
@@ -38,9 +38,9 @@ export async function POST(request) {
   // sul numero di allievi (il piano ora limita le PARTITE registrate, non
   // gli allievi: vedi il trigger check_match_quota() sul database).
   const { data: coach, error: coachErr } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('subscription_status')
-    .eq('id', coachId)
+    .eq('id', academyId)
     .single();
 
   if (coachErr || !coach) {
@@ -66,7 +66,7 @@ export async function POST(request) {
   const { data: athlete, error } = await getSupabaseAdmin()
     .from('athletes')
     .insert({
-      coach_id: coachId,
+      academy_id: academyId,
       full_name: fullName,
       birth_date: birthDate || null,
       phone: phone || null,

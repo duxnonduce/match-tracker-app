@@ -30,9 +30,9 @@ export async function GET(request, { params }) {
   }
 
   const { data: coach } = await getSupabaseAdmin()
-    .from('coaches')
+    .from('academies')
     .select('subscription_status')
-    .eq('id', athlete.coachId)
+    .eq('id', athlete.academyId)
     .single();
   if (!coach || coach.subscription_status !== 'active') {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
   // partita di un altro, né una bozza non ancora rilasciata.
   const { data, error } = await getSupabaseAdmin()
     .from('matches')
-    .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, ai_commentary')
+    .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, ai_commentary, recorded_by_name')
     .eq('id', params.id)
     .eq('athlete_id', athlete.athleteId)
     .eq('published_to_athlete', true)

@@ -11,7 +11,7 @@ export default function CoachMatchDetail() {
   const params = useParams();
   const [record, setRecord] = useState(null);
   const [error, setError] = useState('');
-  const [coachId, setCoachId] = useState(null);
+  const [academyId, setCoachId] = useState(null);
 
   const [rating, setRating] = useState(null);
   const [summary, setSummary] = useState('');
@@ -34,11 +34,12 @@ export default function CoachMatchDetail() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      if (!localStorage.getItem('staff_token')) { router.push('/pin'); return; }
       setCoachId(session.user.id);
 
       const { data, error: err } = await supabase
         .from('matches')
-        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete, ai_commentary, ai_commentary_generated_at')
+        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete, ai_commentary, ai_commentary_generated_at, recorded_by_name')
         .eq('id', params.matchId)
         .single();
 
@@ -96,7 +97,7 @@ export default function CoachMatchDetail() {
       const res = await fetch('/api/ai/generate-commentary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matchId: params.matchId, coachId }),
+        body: JSON.stringify({ matchId: params.matchId, academyId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Errore');
