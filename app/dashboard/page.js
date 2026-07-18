@@ -374,14 +374,10 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="tab-bar-v4">
-            <button className={'tab-btn-v4' + (activeTab==='allievi' ? ' active' : '')} onClick={()=>setActiveTab('allievi')}>👥 Allievi</button>
-            <button className={'tab-btn-v4' + (activeTab==='abbonamento' ? ' active' : '')} onClick={()=>setActiveTab('abbonamento')}>💳 Abbonamento</button>
-          </div>
-
           {activeTab === 'abbonamento' && (
           <div className="card">
-            <div className="section-title-row">
+            <a style={{cursor:'pointer', fontSize:13}} className="muted" onClick={()=>setActiveTab('allievi')}>← Torna agli allievi</a>
+            <div className="section-title-row" style={{marginTop:14}}>
               <div className="icon-badge gold">💳</div>
               <h2>Il tuo abbonamento</h2>
             </div>
@@ -663,10 +659,8 @@ export default function Dashboard() {
       </ConfirmDialog>
 
       <nav className="bottom-nav">
-        <button className="bottom-nav-item active"><span className="bn-icon">🏠</span>Home</button>
-        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">🎾</span>Partite</button>
-        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">📊</span>Statistiche</button>
-        <button className="bottom-nav-item" onClick={()=>{setActiveTab('abbonamento'); window.scrollTo({top:0, behavior:'smooth'});}}><span className="bn-icon">⚙️</span>Impostazioni</button>
+        <button className={'bottom-nav-item' + (activeTab==='allievi' ? ' active' : '')} onClick={()=>{setActiveTab('allievi'); window.scrollTo({top:0, behavior:'smooth'});}}><span className="bn-icon">🏠</span>Home</button>
+        <button className={'bottom-nav-item' + (activeTab==='abbonamento' ? ' active' : '')} onClick={()=>{setActiveTab('abbonamento'); window.scrollTo({top:0, behavior:'smooth'});}}><span className="bn-icon">⚙️</span>Impostazioni</button>
       </nav>
     </div>
   );

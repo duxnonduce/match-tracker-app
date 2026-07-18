@@ -234,10 +234,10 @@ export default function AthleteMatches() {
     <div className="wrap has-bottom-nav">
       <Link href="/dashboard" className="muted">← Torna alla dashboard</Link>
 
-      <div className="hero-header" style={{marginTop:14}}>
+      <div className="hero-card-glow" style={{marginTop:14}}>
         <div className="hh-top">
           <div className="hh-who">
-            <div className="avatar-ring"><div className="avatar" style={{fontSize:17}}>{initials(athlete?.full_name)}</div></div>
+            <div className="avatar-orb"><div className="avatar-orb-inner" style={{fontSize:17}}>{initials(athlete?.full_name)}</div></div>
             <div className="who-text">
               <h1 style={{fontSize:19}}>{athlete ? athlete.full_name : 'Allievo'}</h1>
               {athlete?.birth_date && <div className="hh-sub">Nato/a il {new Date(athlete.birth_date).toLocaleDateString('it-IT')}{athlete?.dominant_hand && ` · ${athlete.dominant_hand === 'sinistra' ? 'Mancino' : 'Destro'}`}</div>}
@@ -495,8 +495,6 @@ export default function AthleteMatches() {
 
       <nav className="bottom-nav">
         <button className="bottom-nav-item" onClick={()=>router.push('/dashboard')}><span className="bn-icon">🏠</span>Home</button>
-        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">🎾</span>Partite</button>
-        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">📊</span>Statistiche</button>
         <button className="bottom-nav-item" onClick={()=>router.push('/dashboard')}><span className="bn-icon">⚙️</span>Impostazioni</button>
       </nav>
     </div>
