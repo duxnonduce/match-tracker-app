@@ -48,7 +48,7 @@ export async function GET(request) {
   // ancora "rilasciato" (bozze con eventuale valutazione non finita).
   const { data, error } = await getSupabaseAdmin()
     .from('matches')
-    .select('id, meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, created_at')
+    .select('id, meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, ai_commentary, created_at')
     .eq('athlete_id', athlete.athleteId)
     .eq('published_to_athlete', true)
     .order('created_at', { ascending: false });

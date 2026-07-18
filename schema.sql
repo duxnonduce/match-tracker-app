@@ -102,6 +102,8 @@ create table matches (
   coach_worked_well text,
   coach_to_improve text,
   coach_next_goal text,
+  ai_commentary text,
+  ai_commentary_generated_at timestamptz,
   published_to_athlete boolean default false,
   created_at timestamptz default now()
 );

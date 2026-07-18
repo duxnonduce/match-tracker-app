@@ -11,6 +11,7 @@ export default function CoachMatchDetail() {
   const params = useParams();
   const [record, setRecord] = useState(null);
   const [error, setError] = useState('');
+  const [coachId, setCoachId] = useState(null);
 
   const [rating, setRating] = useState(null);
   const [summary, setSummary] = useState('');
@@ -21,6 +22,10 @@ export default function CoachMatchDetail() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
 
+  const [aiCommentary, setAiCommentary] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
+
   const [deleteStep, setDeleteStep] = useState(0); // 0=chiuso, 1=avviso, 2=conferma scritta
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -29,10 +34,11 @@ export default function CoachMatchDetail() {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
+      setCoachId(session.user.id);
 
       const { data, error: err } = await supabase
         .from('matches')
-        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete')
+        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete, ai_commentary, ai_commentary_generated_at')
         .eq('id', params.matchId)
         .single();
 
@@ -47,6 +53,7 @@ export default function CoachMatchDetail() {
       setToImprove(data.coach_to_improve || '');
       setNextGoal(data.coach_next_goal || '');
       setPublished(!!data.published_to_athlete);
+      setAiCommentary(data.ai_commentary || '');
     })();
   }, [params.matchId]);
 
@@ -78,6 +85,26 @@ export default function CoachMatchDetail() {
       setSaveMsg('Errore: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleGenerateAI() {
+    setAiGenerating(true);
+    setAiError('');
+    try {
+      const res = await fetch('/api/ai/generate-commentary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matchId: params.matchId, coachId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Errore');
+      setAiCommentary(data.commentary);
+      setRecord(r => ({ ...r, ai_commentary: data.commentary }));
+    } catch (err) {
+      setAiError(err.message);
+    } finally {
+      setAiGenerating(false);
     }
   }
 
@@ -129,6 +156,28 @@ export default function CoachMatchDetail() {
             </div>
             {saveMsg && <p className="muted" style={{marginTop:8}}>{saveMsg}</p>}
             {published && <p className="success" style={{marginTop:4}}>Questa partita è visibile all'allievo.</p>}
+          </div>
+
+          <div className="card">
+            <h2 style={{fontSize:16}}>🤖 Analisi tecnica AI</h2>
+            <p className="muted" style={{marginBottom:12}}>
+              Un commento tattico generato dall'intelligenza artificiale, basato solo sui dati registrati in questa partita. Ogni generazione consuma credito sulla tua chiave OpenAI.
+            </p>
+            {record.log && record.log.length < 10 ? (
+              <p className="field-hint">Servono almeno 10 episodi registrati per generarlo (ce ne sono {record.log?.length || 0}).</p>
+            ) : (
+              <>
+                {aiCommentary && (
+                  <div style={{background:'var(--surface2)', borderRadius:10, padding:'14px 16px', marginBottom:12, lineHeight:1.6, fontSize:14}}>
+                    {aiCommentary}
+                  </div>
+                )}
+                <button className="btn secondary" disabled={aiGenerating} onClick={handleGenerateAI}>
+                  {aiGenerating ? 'Generazione in corso…' : aiCommentary ? '🔄 Rigenera commento' : '✨ Genera commento AI'}
+                </button>
+                {aiError && <p className="error" style={{marginTop:8}}>{aiError}</p>}
+              </>
+            )}
           </div>
 
           <div className="card">
