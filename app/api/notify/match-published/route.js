@@ -21,7 +21,7 @@ export async function POST(request) {
     return Response.json({ error: 'matchId mancante' }, { status: 400 });
   }
 
-  const { data: match, error } = await supabaseAdmin
+  const { data: match, error } = await getSupabaseAdmin()
     .from('matches')
     .select('meta, published_to_athlete, athlete_id, coach_id')
     .eq('id', matchId)

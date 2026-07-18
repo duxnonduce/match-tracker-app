@@ -30,7 +30,7 @@ export async function GET(request) {
     return Response.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  const { data: coach } = await supabaseAdmin
+  const { data: coach } = await getSupabaseAdmin()
     .from('coaches')
     .select('subscription_status')
     .eq('id', athlete.coachId)
@@ -39,7 +39,7 @@ export async function GET(request) {
     return Response.json({ error: 'Il tuo maestro non ha al momento un abbonamento attivo.' }, { status: 403 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('training_sessions')
     .select('id, shot_type, started_at, episodes, coach_rating, coach_summary')
     .eq('athlete_id', athlete.athleteId)

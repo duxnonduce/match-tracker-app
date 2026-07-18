@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
     return Response.json({ error: 'Non autenticato' }, { status: 401 });
   }
 
-  const { data: coach } = await supabaseAdmin
+  const { data: coach } = await getSupabaseAdmin()
     .from('coaches')
     .select('subscription_status')
     .eq('id', athlete.coachId)
@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
   // Triplo filtro: id della partita + athlete_id del token + deve essere
   // stata pubblicata dal maestro. Un allievo non può mai vedere la
   // partita di un altro, né una bozza non ancora rilasciata.
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('matches')
     .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal')
     .eq('id', params.id)

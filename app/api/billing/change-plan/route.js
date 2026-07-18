@@ -54,7 +54,7 @@ export async function POST(request) {
     return Response.json({ error: 'Pacchetto non valido' }, { status: 400 });
   }
 
-  const { data: coach, error: coachErr } = await supabaseAdmin
+  const { data: coach, error: coachErr } = await getSupabaseAdmin()
     .from('coaches')
     .select('stripe_subscription_id, plan_tier, current_period_start')
     .eq('id', coachId)

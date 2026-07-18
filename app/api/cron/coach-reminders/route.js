@@ -25,7 +25,7 @@ export async function GET(request) {
   const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
   // 1) maestri con abbonamento in ritardo di pagamento
-  const { data: pastDueCoaches } = await supabaseAdmin
+  const { data: pastDueCoaches } = await getSupabaseAdmin()
     .from('coaches')
     .select('id')
     .eq('subscription_status', 'past_due');

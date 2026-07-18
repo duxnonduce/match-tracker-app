@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
   }
 
   // Verifica che l'allievo appartenga davvero a questo maestro prima di toccarlo.
-  const { data: athlete, error: findErr } = await supabaseAdmin
+  const { data: athlete, error: findErr } = await getSupabaseAdmin()
     .from('athletes')
     .select('id, coach_id, full_name')
     .eq('id', params.id)
@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
   const pin = generatePin();
   const pinHash = bcrypt.hashSync(pin, 10);
 
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('athletes')
     .update({ pin_hash: pinHash })
     .eq('id', params.id);

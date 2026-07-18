@@ -32,7 +32,7 @@ export async function GET(request) {
   const now = new Date();
   const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  const { data: coaches, error } = await supabaseAdmin
+  const { data: coaches, error } = await getSupabaseAdmin()
     .from('coaches')
     .select('id, email, first_name, plan_tier, current_period_end, renewal_reminder_sent_at')
     .eq('subscription_status', 'active')

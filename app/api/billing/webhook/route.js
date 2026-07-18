@@ -118,7 +118,7 @@ export async function POST(request) {
       const newPeriodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
       const newPeriodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
 
-      const { data: existing } = await supabaseAdmin
+      const { data: existing } = await getSupabaseAdmin()
         .from('coaches').select('current_period_end').eq('stripe_subscription_id', sub.id).single();
       const periodRolledOver = existing && existing.current_period_end !== newPeriodEndIso;
 

@@ -37,7 +37,7 @@ export async function POST(request) {
   // 1) verifica solo che l'abbonamento sia attivo — non c'è più un limite
   // sul numero di allievi (il piano ora limita le PARTITE registrate, non
   // gli allievi: vedi il trigger check_match_quota() sul database).
-  const { data: coach, error: coachErr } = await supabaseAdmin
+  const { data: coach, error: coachErr } = await getSupabaseAdmin()
     .from('coaches')
     .select('subscription_status')
     .eq('id', coachId)
@@ -63,7 +63,7 @@ export async function POST(request) {
   const pinHash = bcrypt.hashSync(pin, 10);
   const fullName = `${firstName} ${lastName}`.trim();
 
-  const { data: athlete, error } = await supabaseAdmin
+  const { data: athlete, error } = await getSupabaseAdmin()
     .from('athletes')
     .insert({
       coach_id: coachId,

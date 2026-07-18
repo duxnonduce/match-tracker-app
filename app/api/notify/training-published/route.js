@@ -23,7 +23,7 @@ export async function POST(request) {
     return Response.json({ error: 'sessionId mancante' }, { status: 400 });
   }
 
-  const { data: session, error } = await supabaseAdmin
+  const { data: session, error } = await getSupabaseAdmin()
     .from('training_sessions')
     .select('shot_type, published_to_athlete, athlete_id, coach_id')
     .eq('id', sessionId)

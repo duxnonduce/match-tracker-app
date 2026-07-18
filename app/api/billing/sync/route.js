@@ -35,7 +35,7 @@ function getPeriodStart(sub) {
 export async function POST(request) {
   const { coachId } = await request.json();
 
-  const { data: coach, error: coachErr } = await supabaseAdmin
+  const { data: coach, error: coachErr } = await getSupabaseAdmin()
     .from('coaches')
     .select('stripe_subscription_id')
     .eq('id', coachId)

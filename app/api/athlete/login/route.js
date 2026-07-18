@@ -27,7 +27,7 @@ export async function POST(request) {
   // e confrontare l'hash. Per dataset grandi conviene invece generare PIN
   // univoci a livello globale e indicizzare un hash deterministico — per
   // iniziare, questo approccio semplice va benissimo.
-  const { data: athletes, error } = await supabaseAdmin
+  const { data: athletes, error } = await getSupabaseAdmin()
     .from('athletes')
     .select('id, coach_id, full_name, pin_hash, active')
     .eq('active', true);
@@ -44,7 +44,7 @@ export async function POST(request) {
 
   // Se il maestro non ha un abbonamento attivo (scaduto, pagamento fallito,
   // disdetto), blocchiamo l'accesso anche ai suoi allievi.
-  const { data: coach } = await supabaseAdmin
+  const { data: coach } = await getSupabaseAdmin()
     .from('coaches')
     .select('subscription_status')
     .eq('id', match.coach_id)

@@ -19,7 +19,7 @@ export async function POST(request) {
     return Response.json({ error: 'goalId mancante' }, { status: 400 });
   }
 
-  const { data: goal, error } = await supabaseAdmin
+  const { data: goal, error } = await getSupabaseAdmin()
     .from('athlete_goals')
     .select('title, published_to_athlete, athlete_id, coach_id')
     .eq('id', goalId)
@@ -29,7 +29,7 @@ export async function POST(request) {
     return Response.json({ error: 'Obiettivo non trovato o non pubblicato' }, { status: 404 });
   }
 
-  const { data: coach } = await supabaseAdmin
+  const { data: coach } = await getSupabaseAdmin()
     .from('coaches').select('first_name, last_name, academy_name').eq('id', goal.coach_id).single();
   const coachName = coach?.academy_name || [coach?.first_name, coach?.last_name].filter(Boolean).join(' ');
 
