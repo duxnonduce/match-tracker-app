@@ -300,18 +300,28 @@ export default function Dashboard() {
   const targetPlan = PLANS.find(p => p.id === planChangeTarget);
 
   return (
-    <div className="wrap">
-      <div className="hero-header">
+    <div className="wrap has-bottom-nav">
+      <div className="hero-card-glow">
         <div className="hh-top">
           <div className="hh-who">
-            <div className="avatar-ring"><div className="avatar">{initials(coachDisplayName)}</div></div>
+            <div className="avatar-orb"><div className="avatar-orb-inner">{initials(coachDisplayName)}</div></div>
             <div className="who-text">
-              <div className="hh-greeting">{greeting()}</div>
-              <h1>{coachDisplayName || 'Il mio profilo'}</h1>
+              <div className="greeting-caps">{greeting()}</div>
+              <h1 style={{fontSize:20}}>{coachDisplayName || 'Il mio profilo'}</h1>
               <div className="hh-sub">{coach?.academy_name || 'Maestro di tennis'}{coach?.academy_city ? ' · ' + coach.academy_city : ''}</div>
             </div>
           </div>
           <button className="icon-btn" onClick={handleLogout} title="Esci">⏻</button>
+        </div>
+
+        <div className="pulse-graphic">
+          <svg viewBox="0 0 300 60" preserveAspectRatio="none">
+            <polyline
+              fill="none" stroke="var(--accent)" strokeWidth="2" opacity="0.85"
+              points="0,30 60,30 78,30 92,8 106,52 120,30 145,30 300,30"
+            />
+          </svg>
+          <div className="pulse-ball"></div>
         </div>
 
         {coach && (
@@ -335,10 +345,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="status-strip">
-        <span className="status-pill" onClick={handleEnablePush}>
-          {pushStatus || '🔔 Attiva notifiche'}
-        </span>
+      <div className="notif-row" onClick={handleEnablePush}>
+        <div className="icon-badge">🔔</div>
+        <div className="nr-text">{pushStatus || 'Attiva notifiche'}</div>
+        <span className="nr-arrow">›</span>
       </div>
 
       {coach && coach.subscription_status !== 'active' ? (
@@ -364,9 +374,9 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
-          <div className="tab-bar">
-            <button className={'tab-btn' + (activeTab==='allievi' ? ' active' : '')} onClick={()=>setActiveTab('allievi')}>👥 Allievi</button>
-            <button className={'tab-btn' + (activeTab==='abbonamento' ? ' active' : '')} onClick={()=>setActiveTab('abbonamento')}>💳 Abbonamento</button>
+          <div className="tab-bar-v4">
+            <button className={'tab-btn-v4' + (activeTab==='allievi' ? ' active' : '')} onClick={()=>setActiveTab('allievi')}>👥 Allievi</button>
+            <button className={'tab-btn-v4' + (activeTab==='abbonamento' ? ' active' : '')} onClick={()=>setActiveTab('abbonamento')}>💳 Abbonamento</button>
           </div>
 
           {activeTab === 'abbonamento' && (
@@ -450,17 +460,25 @@ export default function Dashboard() {
 
           {activeTab === 'allievi' && (
           <>
-          <div className="card">
-            <div className="row" style={{marginBottom: showAthleteForm ? 16 : 0}}>
-              <div className="section-title-row" style={{marginBottom:0}}>
-                <div className="icon-badge">➕</div>
-                <h2>Aggiungi un allievo</h2>
+          {!showAthleteForm && (
+            <div className="add-athlete-row" onClick={()=>setShowAthleteForm(true)}>
+              <div className="aa-plus">+</div>
+              <div className="aa-text">
+                <div className="aa-title">Aggiungi un allievo</div>
+                <div className="aa-sub">Crea un nuovo profilo</div>
               </div>
-              {!showAthleteForm && <button className="btn secondary" onClick={()=>setShowAthleteForm(true)}>Nuovo allievo</button>}
+              <button className="btn" onClick={(e)=>{e.stopPropagation(); setShowAthleteForm(true);}}>Nuovo allievo ›</button>
+            </div>
+          )}
+
+          {showAthleteForm && (
+          <div className="card">
+            <div className="section-title-row">
+              <div className="icon-badge">➕</div>
+              <h2>Aggiungi un allievo</h2>
             </div>
 
-            {showAthleteForm && (
-              <form onSubmit={handleAddAthlete}>
+            <form onSubmit={handleAddAthlete}>
                 <div className="field-row2">
                   <div className="field"><label>Nome</label><input value={newAthlete.firstName} onChange={e=>setNewAthlete(a=>({...a, firstName:e.target.value}))} required /></div>
                   <div className="field"><label>Cognome</label><input value={newAthlete.lastName} onChange={e=>setNewAthlete(a=>({...a, lastName:e.target.value}))} required /></div>
@@ -514,19 +532,21 @@ export default function Dashboard() {
                   <button className="btn" type="submit" style={{flex:1}}>Aggiungi</button>
                 </div>
                 {addError && <div className="error">{addError}</div>}
-              </form>
-            )}
+            </form>
+          </div>
+          )}
 
-            {revealedPin && (
+          {revealedPin && (
+            <div className="card">
               <div className="pin-reveal">
                 <div className="muted">PIN generato per <b style={{color:'var(--text)'}}>{revealedPin.name}</b>. Comunicalo ora all'allievo. Non sarà più visibile.</div>
                 <div className="pin">{revealedPin.pin}</div>
                 <button className="btn secondary" style={{marginTop:10}} onClick={()=>setRevealedPin(null)}>Ho preso nota, nascondi</button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="card">
+          <div className="card" style={{marginTop:14}}>
             <div className="section-title-row">
               <div className="icon-badge blue">👥</div>
               <h2>I tuoi allievi</h2>
@@ -545,12 +565,12 @@ export default function Dashboard() {
             <div className="athlete-grid">
               {filteredAthletes.map(a => (
                 <Link key={a.id} href={`/dashboard/athlete/${a.id}`} className="athlete-card-v3">
-                  <div className="avatar">{initials(a.full_name)}</div>
+                  <div className="avatar-orb" style={{width:44, height:44}}><div className="avatar-orb-inner" style={{fontSize:14}}>{initials(a.full_name)}</div></div>
                   <div className="li-text">
                     <div className="li-title">{a.full_name}</div>
                     {a.birth_date && <div className="li-sub">Nato/a il {new Date(a.birth_date).toLocaleDateString('it-IT')}</div>}
                   </div>
-                  <span className="arrow">→</span>
+                  <span className="arrow">›</span>
                 </Link>
               ))}
             </div>
@@ -641,6 +661,13 @@ export default function Dashboard() {
           <div className="error">Scrivi esattamente "ANNULLA" per abilitare il pulsante.</div>
         )}
       </ConfirmDialog>
+
+      <nav className="bottom-nav">
+        <button className="bottom-nav-item active"><span className="bn-icon">🏠</span>Home</button>
+        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">🎾</span>Partite</button>
+        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">📊</span>Statistiche</button>
+        <button className="bottom-nav-item" onClick={()=>{setActiveTab('abbonamento'); window.scrollTo({top:0, behavior:'smooth'});}}><span className="bn-icon">⚙️</span>Impostazioni</button>
+      </nav>
     </div>
   );
 }

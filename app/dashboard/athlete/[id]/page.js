@@ -231,7 +231,7 @@ export default function AthleteMatches() {
   if (loading) return <div className="wrap"><p className="muted">Caricamento…</p></div>;
 
   return (
-    <div className="wrap">
+    <div className="wrap has-bottom-nav">
       <Link href="/dashboard" className="muted">← Torna alla dashboard</Link>
 
       <div className="hero-header" style={{marginTop:14}}>
@@ -492,6 +492,13 @@ export default function AthleteMatches() {
           );
         })}
       </div>
+
+      <nav className="bottom-nav">
+        <button className="bottom-nav-item" onClick={()=>router.push('/dashboard')}><span className="bn-icon">🏠</span>Home</button>
+        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">🎾</span>Partite</button>
+        <button className="bottom-nav-item" disabled title="In arrivo"><span className="bn-icon">📊</span>Statistiche</button>
+        <button className="bottom-nav-item" onClick={()=>router.push('/dashboard')}><span className="bn-icon">⚙️</span>Impostazioni</button>
+      </nav>
     </div>
   );
 }

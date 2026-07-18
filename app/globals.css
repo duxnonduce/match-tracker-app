@@ -316,7 +316,7 @@ a.list-item:active{transform:scale(.99);}
 .athlete-card-v3:active{transform:scale(.98);}
 .athlete-card-v3 .avatar{width:42px;height:42px;font-size:15px;}
 .athlete-card-v3 .li-text{min-width:0;flex:1;}
-.athlete-card-v3 .li-title{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.athlete-card-v3 .li-title{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.3px;}
 .athlete-card-v3 .arrow{color:var(--muted);transition:transform .15s;}
 .athlete-card-v3:hover .arrow{transform:translateX(3px);color:var(--accent);}
 
@@ -334,3 +334,104 @@ a.list-item:active{transform:scale(.99);}
 .list-item-v3::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent);opacity:0;transition:opacity .15s;}
 .list-item-v3:hover{border-color:var(--accent);transform:translateX(2px);}
 .list-item-v3:hover::before{opacity:1;}
+
+/* ============================================================
+   V4 — Hero luminoso, avatar sfera, grafica decorativa, nav in basso
+============================================================ */
+body{padding-bottom:0;}
+.wrap.has-bottom-nav{padding-bottom:90px;}
+
+.hero-card-glow{
+  position:relative;overflow:visible;border-radius:22px;padding:24px 20px 20px;margin-bottom:16px;
+  background:
+    radial-gradient(460px 240px at 100% -25%, rgba(215,255,78,0.22), transparent 60%),
+    radial-gradient(380px 220px at -10% 130%, rgba(89,166,255,0.14), transparent 60%),
+    linear-gradient(160deg, var(--surface) 0%, var(--surface2) 100%);
+  border:1px solid rgba(215,255,78,0.35);
+  box-shadow:0 0 0 1px rgba(215,255,78,0.08), 0 0 30px rgba(215,255,78,0.10), 0 12px 30px rgba(0,0,0,0.35);
+}
+.hero-card-glow::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background-image:radial-gradient(rgba(238,242,234,0.05) 1px, transparent 1px);
+  background-size:16px 16px;mask-image:linear-gradient(180deg, black, transparent 80%);
+}
+
+.avatar-orb{
+  width:64px;height:64px;border-radius:50%;flex-shrink:0;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(from 180deg, var(--accent), #8fe0c9, var(--accent));
+  padding:3px;box-shadow:0 0 18px rgba(215,255,78,0.35);
+}
+.avatar-orb .avatar-orb-inner{
+  width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 35% 30%, #eaffb0, var(--accent) 55%, #9fd63a 100%);
+  color:#0c1710;font-family:'Oswald';font-weight:700;font-size:20px;
+}
+
+.greeting-caps{font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:3px;}
+
+.pulse-graphic{position:relative;height:70px;margin:10px 0 4px;display:flex;align-items:center;justify-content:center;opacity:.9;}
+.pulse-graphic svg{width:100%;height:100%;}
+.pulse-ball{
+  position:absolute;right:18%;top:50%;transform:translateY(-50%);
+  width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, #f2ffcf, var(--accent) 55%, #90c93a 100%);
+  box-shadow:0 0 16px rgba(215,255,78,0.55);
+}
+.pulse-ball::before{
+  content:"";position:absolute;inset:3px;border-radius:50%;
+  background:repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(12,23,16,0.25) 3px, rgba(12,23,16,0.25) 4px);
+  opacity:.4;
+}
+
+.notif-row{
+  display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:16px;padding:14px 16px;margin-bottom:14px;cursor:pointer;
+}
+.notif-row .icon-badge{background:var(--accent-dim);box-shadow:0 0 12px rgba(215,255,78,0.2);}
+.notif-row .nr-text{flex:1;font-weight:600;font-size:14px;}
+.notif-row .nr-arrow{color:var(--muted);font-size:16px;}
+
+.tab-bar-v4{display:flex;gap:8px;margin-bottom:16px;}
+.tab-btn-v4{
+  flex:1;padding:14px 10px;border:1px solid var(--line);border-radius:14px;background:var(--surface2);color:var(--muted);
+  font-weight:700;font-size:14px;cursor:pointer;font-family:'Oswald';letter-spacing:.3px;
+  display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;
+}
+.tab-btn-v4.active{
+  background:linear-gradient(135deg, var(--accent), #b9e84a);color:#0c1710;border-color:transparent;
+  box-shadow:0 4px 16px rgba(215,255,78,0.30);
+}
+
+.add-athlete-row{
+  display:flex;align-items:center;gap:14px;background:var(--surface2);border:1px dashed var(--line);
+  border-radius:16px;padding:14px 16px;margin-bottom:0;
+}
+.add-athlete-row .aa-plus{
+  width:44px;height:44px;border-radius:50%;background:var(--accent-dim);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--accent);
+}
+.add-athlete-row .aa-text{flex:1;min-width:0;}
+.add-athlete-row .aa-title{font-weight:700;font-size:14.5px;}
+.add-athlete-row .aa-sub{font-size:12px;color:var(--muted);}
+
+.section-header-row{
+  display:flex;align-items:center;gap:12px;margin-bottom:14px;
+}
+.section-header-row .shr-text{flex:1;font-weight:700;font-size:15.5px;}
+.section-header-row .shr-count{font-family:'Oswald';color:var(--accent);font-size:15px;}
+.section-header-row .shr-arrow{color:var(--muted);}
+
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  display:flex;justify-content:space-around;align-items:center;
+  background:rgba(16,29,22,0.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line);padding:10px 6px calc(10px + env(safe-area-inset-bottom));
+}
+.bottom-nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;
+  color:var(--muted);font-size:10.5px;font-weight:600;padding:6px 14px;border-radius:12px;transition:all .15s;
+}
+.bottom-nav-item .bn-icon{font-size:19px;}
+.bottom-nav-item.active{color:var(--accent);background:var(--accent-dim);}
+.bottom-nav-item:disabled{opacity:.4;cursor:default;}
