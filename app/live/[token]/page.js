@@ -27,7 +27,7 @@ export default function LiveMatchPage() {
 
   async function fetchData() {
     try {
-      const res = await fetch(`/api/live/${params.token}`);
+      const res = await fetch(`/api/live/${params.token}`, { cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) { setError(json.error || 'Errore'); return; }
       setError('');

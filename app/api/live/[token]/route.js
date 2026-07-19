@@ -8,6 +8,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { getCurrentServer } from '../../../../lib/matchEngine';
 
+// Fondamentale per una route "live": senza questo, Next.js può mettere in
+// cache la prima risposta e restituire sempre la stessa, facendo sembrare
+// il punteggio bloccato anche quando la partita va avanti.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 let _supabaseAdmin = null;
 function getSupabaseAdmin() {
   if (!_supabaseAdmin) {

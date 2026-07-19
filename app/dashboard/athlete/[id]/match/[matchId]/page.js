@@ -135,7 +135,7 @@ export default function CoachMatchDetail() {
     <>
       <ReportViewer record={record} />
 
-      {record.is_live && record.live_token && (
+      {record && record.is_live && record.live_token && (
         <div className="card">
           <h2 style={{fontSize:16}}>🔴 Link Live di questa partita</h2>
           <p className="muted" style={{marginBottom:10}}>
