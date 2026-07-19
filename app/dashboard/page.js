@@ -588,6 +588,12 @@ export default function Dashboard() {
             </div>
           )}
 
+          <Link href="/dashboard/statistiche" className="notif-row" style={{textDecoration:'none', color:'inherit'}}>
+            <div className="icon-badge blue">📊</div>
+            <div className="nr-text">Analisi avanzate — filtri e confronti</div>
+            <span className="nr-arrow">›</span>
+          </Link>
+
           <div className="card" style={{marginTop:14}}>
             <div className="section-title-row">
               <div className="icon-badge blue">👥</div>
