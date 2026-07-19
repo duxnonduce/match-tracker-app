@@ -11,7 +11,7 @@ Chart.register(...registerables);
 const SURFACE_LABELS = { terra: 'Terra rossa', cemento: 'Cemento', erba: 'Erba', indoor: 'Indoor', altro: 'Altro' };
 
 function ChartCanvas({ id, height = 220 }) {
-  return <div style={{ height }}><canvas id={id}></canvas></div>;
+  return <div style={{ position: 'relative', height, width: '100%', overflow: 'hidden' }}><canvas id={id}></canvas></div>;
 }
 
 export default function StatistichePage() {
