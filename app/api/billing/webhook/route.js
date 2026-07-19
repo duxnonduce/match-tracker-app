@@ -65,16 +65,16 @@ export async function POST(request) {
       const session = event.data.object;
       const { academyId, plan } = session.metadata;
 
-      // Recuperiamo la sottoscrizione per sapere inizio/fine periodo da
-      // mettere nell'email e da usare per il conteggio mensile delle partite.
-      let periodEndIso = null, periodStartIso = null;
+      // Recuperiamo la sottoscrizione per sapere inizio/fine periodo e il
+      // prezzo reale da mettere nell'email, e per il conteggio mensile.
+      let periodEndIso = null, periodStartIso = null, sub = null;
       try {
-        const sub = await getStripe().subscriptions.retrieve(session.subscription, { expand: ['items'] });
+        sub = await getStripe().subscriptions.retrieve(session.subscription, { expand: ['items.data.price'] });
         const periodEndUnix = getPeriodEnd(sub);
         const periodStartUnix = getPeriodStart(sub);
         periodEndIso = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
         periodStartIso = periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null;
-      } catch (e) { /* non bloccante: mandiamo comunque l'email senza data se fallisce */ }
+      } catch (e) { /* non bloccante: mandiamo comunque l'email senza data/prezzo se fallisce */ }
 
       await getSupabaseAdmin().from('academies').update({
         stripe_customer_id: session.customer,
@@ -88,13 +88,21 @@ export async function POST(request) {
       }).eq('id', academyId);
 
       try {
-        const { data: coach } = await getSupabaseAdmin().from('academies').select('email, first_name').eq('id', academyId).single();
+        const { data: coach } = await getSupabaseAdmin().from('academies').select('email, academy_name, academy_city, ragione_sociale, partita_iva').eq('id', academyId).single();
         if (coach) {
+          const price = sub?.items?.data?.[0]?.price;
+          const priceLabel = price?.unit_amount != null
+            ? `${new Intl.NumberFormat('it-IT', { style: 'currency', currency: price.currency.toUpperCase() }).format(price.unit_amount / 100)} / ${price.recurring?.interval === 'year' ? 'anno' : 'mese'}`
+            : null;
           await sendSubscriptionConfirmedEmail({
             toEmail: coach.email,
-            coachName: coach.first_name,
+            academyName: coach.academy_name,
+            academyCity: coach.academy_city,
+            ragioneSociale: coach.ragione_sociale,
+            partitaIva: coach.partita_iva,
             planLabel: PLAN_LABELS[plan] || plan,
             quota: quotaLabel(MATCH_QUOTA_BY_PLAN[plan]),
+            priceLabel,
             periodEndFormatted: formatDateIt(periodEndIso),
           });
         }

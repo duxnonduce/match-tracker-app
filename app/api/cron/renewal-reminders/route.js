@@ -34,7 +34,7 @@ export async function GET(request) {
 
   const { data: coaches, error } = await getSupabaseAdmin()
     .from('academies')
-    .select('id, email, first_name, plan_tier, current_period_end, renewal_reminder_sent_at')
+    .select('id, email, academy_name, academy_city, ragione_sociale, partita_iva, plan_tier, current_period_end, renewal_reminder_sent_at')
     .eq('subscription_status', 'active')
     .eq('cancel_at_period_end', false) // chi ha già annullato non deve ricevere "sta per rinnovarsi"
     .not('current_period_end', 'is', null)
@@ -51,7 +51,10 @@ export async function GET(request) {
     try {
       await sendRenewalReminderEmail({
         toEmail: coach.email,
-        coachName: coach.first_name,
+        academyName: coach.academy_name,
+        academyCity: coach.academy_city,
+        ragioneSociale: coach.ragione_sociale,
+        partitaIva: coach.partita_iva,
         planLabel: PLAN_LABELS[coach.plan_tier] || coach.plan_tier,
         periodEndFormatted: formatDateIt(coach.current_period_end),
       });

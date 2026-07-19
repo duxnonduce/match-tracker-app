@@ -6,6 +6,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '../../../../lib/staffAuth';
+import { sendPlanChangedEmail } from '../../../../lib/email';
 
 let _stripe = null;
 function getStripe() {
@@ -20,6 +21,17 @@ function getSupabaseAdmin() {
     _supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   }
   return _supabaseAdmin;
+}
+
+const PLAN_LABELS = { base10: 'Base', plus30: 'Plus', pro50: 'Pro', oro: 'Oro' };
+
+function quotaLabel(quota) {
+  return quota == null ? 'illimitate' : `${quota}/mese`;
+}
+
+function formatDateIt(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 const PRICE_IDS = {
@@ -62,7 +74,7 @@ export async function POST(request) {
 
   const { data: coach, error: coachErr } = await getSupabaseAdmin()
     .from('academies')
-    .select('stripe_subscription_id, plan_tier, current_period_start')
+    .select('email, academy_name, academy_city, ragione_sociale, partita_iva, stripe_subscription_id, plan_tier, current_period_start')
     .eq('id', academyId)
     .single();
 
@@ -97,7 +109,7 @@ export async function POST(request) {
       items: [{ id: itemId, price: priceId }],
       proration_behavior: 'create_prorations',
       metadata: { academyId, plan: newPlan },
-      expand: ['items'],
+      expand: ['items.data.price'],
     });
 
     const periodEndUnix = getPeriodEnd(updated);
@@ -112,6 +124,27 @@ export async function POST(request) {
       current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
       current_period_start: periodStartUnix ? new Date(periodStartUnix * 1000).toISOString() : null,
     }).eq('id', academyId);
+
+    try {
+      const price = updated.items?.data?.[0]?.price;
+      const priceLabel = price?.unit_amount != null
+        ? `${new Intl.NumberFormat('it-IT', { style: 'currency', currency: price.currency.toUpperCase() }).format(price.unit_amount / 100)} / ${price.recurring?.interval === 'year' ? 'anno' : 'mese'}`
+        : null;
+      await sendPlanChangedEmail({
+        toEmail: coach.email,
+        academyName: coach.academy_name,
+        academyCity: coach.academy_city,
+        ragioneSociale: coach.ragione_sociale,
+        partitaIva: coach.partita_iva,
+        oldPlanLabel: PLAN_LABELS[coach.plan_tier] || coach.plan_tier,
+        newPlanLabel: PLAN_LABELS[newPlan] || newPlan,
+        newQuota: quotaLabel(MATCH_QUOTA_BY_PLAN[newPlan]),
+        priceLabel,
+        periodEndFormatted: formatDateIt(periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null),
+      });
+    } catch (e) {
+      console.warn('invio email cambio pacchetto fallito (non bloccante):', e);
+    }
 
     return Response.json({ ok: true, plan: newPlan });
   } catch (err) {
