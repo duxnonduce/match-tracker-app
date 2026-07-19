@@ -39,7 +39,7 @@ export default function CoachMatchDetail() {
 
       const { data, error: err } = await supabase
         .from('matches')
-        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete, ai_commentary, ai_commentary_generated_at, recorded_by_name')
+        .select('meta, stats, log, match, coach_rating, coach_comment, coach_summary, coach_worked_well, coach_to_improve, coach_next_goal, published_to_athlete, ai_commentary, ai_commentary_generated_at, recorded_by_name, is_live, live_token')
         .eq('id', params.matchId)
         .single();
 
@@ -134,6 +134,26 @@ export default function CoachMatchDetail() {
   return (
     <>
       <ReportViewer record={record} />
+
+      {record.is_live && record.live_token && (
+        <div className="card">
+          <h2 style={{fontSize:16}}>🔴 Link Live di questa partita</h2>
+          <p className="muted" style={{marginBottom:10}}>
+            {record.match?.matchOver
+              ? 'La partita è terminata: chi apre questo link vede solo il risultato finale, non le analisi.'
+              : 'La partita risulta ancora aperta: chi apre questo link vede il punteggio in tempo reale.'}
+          </p>
+          <div style={{background:'var(--surface2)', borderRadius:9, padding:'10px 12px', fontSize:12, wordBreak:'break-all', marginBottom:10, color:'var(--muted)'}}>
+            {typeof window !== 'undefined' ? `${window.location.origin}/live/${record.live_token}` : ''}
+          </div>
+          <button
+            className="btn secondary block"
+            onClick={()=>{
+              navigator.clipboard?.writeText(`${window.location.origin}/live/${record.live_token}`);
+            }}
+          >📋 Copia link</button>
+        </div>
+      )}
 
       {record && (
         <div className="wrap" style={{paddingTop:0, marginTop:-24}}>

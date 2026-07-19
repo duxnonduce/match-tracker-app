@@ -196,12 +196,15 @@ create table matches (
   coach_next_goal text,
   ai_commentary text,
   ai_commentary_generated_at timestamptz,
+  is_live boolean default false,
+  live_token text unique,
   published_to_athlete boolean default false,
   created_at timestamptz default now()
 );
 
 create index idx_matches_academy on matches(academy_id);
 create index idx_matches_athlete on matches(athlete_id);
+create index idx_matches_live_token on matches(live_token) where live_token is not null;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
