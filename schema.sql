@@ -1,5 +1,5 @@
 -- ============================================================
--- SCHEMA DATABASE — PointLab (Supabase / Postgres)
+-- SCHEMA DATABASE — InsideMatch (Supabase / Postgres)
 -- Da eseguire in: Supabase Dashboard → SQL Editor → New query
 -- Modello: l'account appartiene all'ACADEMY (una società sportiva),
 -- non al singolo maestro. Lo staff (i singoli maestri) accede con le

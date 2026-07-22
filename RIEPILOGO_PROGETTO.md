@@ -1,4 +1,4 @@
-# PointLab — Riepilogo completo del progetto
+# InsideMatch — Riepilogo completo del progetto
 
 *Piattaforma per Academy di tennis: tracking partite, analisi, gestione staff/atleti, abbonamenti.*
 
