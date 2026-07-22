@@ -1,4 +1,4 @@
-export const metadata = { title: 'Informativa Privacy · PointLab' };
+export const metadata = { title: 'Informativa Privacy · InsideMatch' };
 
 export default function PrivacyPage() {
   return (
@@ -14,29 +14,29 @@ export default function PrivacyPage() {
         <h2 style={{fontSize:16, marginTop:24}}>1. Titolare del trattamento</h2>
         <p>
           [RAGIONE SOCIALE / NOME E COGNOME], con sede in [INDIRIZZO], P.IVA/C.F. [NUMERO],
-          email di contatto <a href="mailto:[EMAIL]">[EMAIL]</a> ("PointLab", "noi"), è il titolare
+          email di contatto <a href="mailto:[EMAIL]">[EMAIL]</a> ("InsideMatch", "noi"), è il titolare
           del trattamento per i dati descritti al punto 3.a. Per i dati descritti al punto 3.b,
           il titolare del trattamento è il singolo maestro che li inserisce — vedi punto 2.
         </p>
 
         <h2 style={{fontSize:16, marginTop:24}}>2. Due ruoli distinti: attenzione, è importante</h2>
         <p>
-          PointLab è una piattaforma usata da maestri di tennis per registrare partite dei propri
+          InsideMatch è una piattaforma usata da maestri di tennis per registrare partite dei propri
           allievi. Questo comporta due situazioni diverse dal punto di vista della privacy:
         </p>
         <ul>
-          <li><b>Dati del maestro</b> (account, fatturazione): qui PointLab è <b>titolare del trattamento</b>.</li>
+          <li><b>Dati del maestro</b> (account, fatturazione): qui InsideMatch è <b>titolare del trattamento</b>.</li>
           <li>
             <b>Dati degli allievi</b> (inseriti dal maestro): qui il <b>maestro è titolare del trattamento</b>
-            e PointLab agisce come <b>responsabile del trattamento</b> (fornisce lo strumento tecnico, non decide
+            e InsideMatch agisce come <b>responsabile del trattamento</b> (fornisce lo strumento tecnico, non decide
             per quali finalità i dati dell'allievo vengono raccolti). <b>È responsabilità del maestro</b> informare
             l'allievo (o, se minorenne, il genitore/tutore) e raccogliere il consenso necessario prima di inserire
-            i suoi dati in PointLab.
+            i suoi dati in InsideMatch.
           </li>
         </ul>
 
         <h2 style={{fontSize:16, marginTop:24}}>3. Dati raccolti</h2>
-        <p><b>3.a — Dati dell'account maestro</b> (titolare: PointLab):</p>
+        <p><b>3.a — Dati dell'account maestro</b> (titolare: InsideMatch):</p>
         <ul>
           <li>Email e password (gestite dal nostro fornitore di autenticazione, Supabase)</li>
           <li>Nome, cognome, telefono</li>
@@ -56,9 +56,9 @@ export default function PrivacyPage() {
 
         <h2 style={{fontSize:16, marginTop:24}}>4. Minori e dati particolari</h2>
         <p>
-          Molti allievi registrati su PointLab sono minorenni. Il maestro che li inserisce dichiara,
+          Molti allievi registrati su InsideMatch sono minorenni. Il maestro che li inserisce dichiara,
           al momento dell'inserimento, di avere il consenso del genitore o tutore legale al trattamento
-          dei loro dati. PointLab non raccoglie dati sanitari (categoria particolare di dati ai sensi
+          dei loro dati. InsideMatch non raccoglie dati sanitari (categoria particolare di dati ai sensi
           dell'art. 9 GDPR): il campo "Note" non deve essere usato per infortuni, condizioni mediche o
           altre informazioni sulla salute, che richiederebbero una base giuridica e misure di sicurezza
           ulteriori.
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         </ul>
 
         <h2 style={{fontSize:16, marginTop:24}}>6. A chi vengono comunicati i dati (sub-responsabili)</h2>
-        <p>Per far funzionare PointLab, alcuni dati vengono trattati da questi fornitori, in qualità di responsabili del trattamento:</p>
+        <p>Per far funzionare InsideMatch, alcuni dati vengono trattati da questi fornitori, in qualità di responsabili del trattamento:</p>
         <ul>
           <li><b>Supabase</b> — database e autenticazione</li>
           <li><b>Stripe</b> — pagamenti e fatturazione (dati della carta gestiti direttamente da loro, mai da noi)</li>
@@ -97,7 +97,7 @@ export default function PrivacyPage() {
 
         <h2 style={{fontSize:16, marginTop:24}}>8. Diritti dell'interessato</h2>
         <p>
-          Chiunque abbia dati trattati tramite PointLab può richiedere l'accesso, la rettifica, la
+          Chiunque abbia dati trattati tramite InsideMatch può richiedere l'accesso, la rettifica, la
           cancellazione, la limitazione del trattamento, la portabilità dei dati o opporsi al trattamento,
           scrivendo a <a href="mailto:[EMAIL]">[EMAIL]</a>. Se i dati riguardano un allievo, la richiesta va
           indirizzata anche al maestro (titolare per quei dati). È inoltre possibile proporre reclamo al

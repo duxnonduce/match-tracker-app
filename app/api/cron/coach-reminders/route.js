@@ -34,7 +34,7 @@ export async function GET(request) {
   for (const c of pastDueCoaches || []) {
     await sendPushToOwner('coach', c.id, {
       title: '⚠️ Pagamento in ritardo',
-      body: 'Il tuo abbonamento PointLab ha un problema di pagamento: sistemalo per non perdere l\'accesso.',
+      body: 'Il tuo abbonamento InsideMatch ha un problema di pagamento: sistemalo per non perdere l\'accesso.',
       url: '/dashboard',
     });
     remindersSent++;

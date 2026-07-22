@@ -1,11 +1,11 @@
-export const metadata = { title: 'Cookie Policy · PointLab' };
+export const metadata = { title: 'Cookie Policy · InsideMatch' };
 
 export default function CookiePage() {
   return (
     <div className="wrap" style={{maxWidth: 760}}>
       <div className="card">
         <div style={{background:'var(--accent-dim)', border:'1px solid var(--accent)', borderRadius:10, padding:'10px 14px', marginBottom:20, fontSize:13}}>
-          ⚠️ <b>Bozza da far rivedere da un legale</b> — e da aggiornare se in futuro aggiungi strumenti di analytics/marketing (Google Analytics, pixel pubblicitari, ecc.), che oggi PointLab non usa.
+          ⚠️ <b>Bozza da far rivedere da un legale</b> — e da aggiornare se in futuro aggiungi strumenti di analytics/marketing (Google Analytics, pixel pubblicitari, ecc.), che oggi InsideMatch non usa.
         </div>
 
         <h1 style={{fontSize:22}}>Cookie Policy</h1>
@@ -13,7 +13,7 @@ export default function CookiePage() {
 
         <h2 style={{fontSize:16, marginTop:24}}>Cosa usiamo davvero</h2>
         <p>
-          PointLab, ad oggi, <b>non utilizza cookie di profilazione, tracciamento o marketing</b>. Usa
+          InsideMatch, ad oggi, <b>non utilizza cookie di profilazione, tracciamento o marketing</b>. Usa
           solo strumenti tecnici necessari al funzionamento del servizio:
         </p>
         <ul>
@@ -40,7 +40,7 @@ export default function CookiePage() {
         <p>
           Il sito carica risorse da: Google Fonts (caratteri tipografici) e dal CDN di Chart.js
           (se non già incluso nel pacchetto). Questi servizi potrebbero tecnicamente ricevere
-          l'indirizzo IP del visitatore per servire il file richiesto, ma non sono usati da PointLab
+          l'indirizzo IP del visitatore per servire il file richiesto, ma non sono usati da InsideMatch
           per profilazione.
         </p>
 
@@ -48,7 +48,7 @@ export default function CookiePage() {
         <p>
           Puoi cancellare o bloccare i cookie/storage locale dalle impostazioni del tuo browser in
           qualsiasi momento — tieni presente che bloccando quelli tecnici non potrai restare
-          collegato a PointLab.
+          collegato a InsideMatch.
         </p>
 
         <h2 style={{fontSize:16, marginTop:24}}>Contatti</h2>

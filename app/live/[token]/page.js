@@ -73,7 +73,7 @@ export default function LiveMatchPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.brand}>🎾 PointLab — Diretta</div>
+      <div style={styles.brand}>🎾 InsideMatch — Diretta</div>
 
       <div style={styles.card}>
         {data.finished ? (

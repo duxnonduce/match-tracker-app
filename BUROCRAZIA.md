@@ -1,4 +1,4 @@
-# PointLab — checklist burocratica e legale
+# InsideMatch — checklist burocratica e legale
 
 Questa è la parte che nessun codice può fare al posto tuo. Te la riassumo in ordine pratico.
 **Non è consulenza legale/fiscale** — è una mappa di cosa verificare, con chi.
@@ -42,7 +42,7 @@ particolare per:
 ## 3. Registro dei trattamenti (GDPR)
 
 Se tratti dati di minori e li strutturi in modo sistematico (che è esattamente il caso di
-PointLab), è buona pratica — e in alcuni casi obbligatorio — tenere un **Registro delle attività
+InsideMatch), è buona pratica — e in alcuni casi obbligatorio — tenere un **Registro delle attività
 di trattamento** (art. 30 GDPR): un documento interno (non pubblico) che elenca quali dati tratti,
 per quale scopo, dove sono conservati, per quanto tempo. Un consulente privacy/legale può aiutarti
 a compilarlo in un paio d'ore.
@@ -79,11 +79,11 @@ rischi legati a data breach. Chiedi un preventivo quando il progetto ha utenti p
 
 ## Riepilogo: cosa ho già fatto io nel codice
 
-- Pagine `/privacy`, `/termini`, `/cookie` con bozze specifiche per come funziona davvero PointLab
+- Pagine `/privacy`, `/termini`, `/cookie` con bozze specifiche per come funziona davvero InsideMatch
 - Checkbox obbligatoria di accettazione Termini+Privacy alla registrazione del maestro (con data/ora salvata)
 - Checkbox obbligatoria di conferma consenso genitoriale all'inserimento di ogni allievo (con data/ora salvata, controllata anche lato server — non solo nel browser)
 - Rimosso dal form allievo il suggerimento a inserire dati sanitari ("infortuni") nelle note libere, con un avviso esplicito
-- Rinominata l'app in "PointLab" ovunque nel codice
+- Rinominata l'app in "InsideMatch" ovunque nel codice
 
 ## Cosa resta da fare (solo tu/un professionista)
 

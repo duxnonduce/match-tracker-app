@@ -2,13 +2,13 @@ import './globals.css';
 import RegisterSW from '../lib/RegisterSW';
 
 export const metadata = {
-  title: 'PointLab · Tennis',
+  title: 'InsideMatch · Tennis',
   description: 'Registrazione partite e analisi per maestri di tennis',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'PointLab',
+    title: 'InsideMatch',
   },
 };
 
