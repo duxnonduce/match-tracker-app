@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.insidematch.app",
+      "sha256_cert_fingerprints": [
+        "SOSTITUISCI_CON_LA_TUA_IMPRONTA_SHA256"
+      ]
+    }
+  }
+]

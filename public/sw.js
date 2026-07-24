@@ -1,22 +1,65 @@
-// Service worker volutamente minimale: nessuna cache offline (per
-// un'app che cambia dati in continuazione, cache aggressive = bug di
-// dati vecchi mostrati). Serve principalmente a soddisfare i requisiti
-// di installabilità di alcuni browser (Chrome desktop/Android).
+// Service worker: mette in cache SOLO i file statici (JS/CSS/icone —
+// hanno un nome che cambia ad ogni build, quindi cache aggressiva senza
+// rischio di mostrare dati vecchi) e mai le pagine dinamiche o le
+// chiamate a Supabase — quelle restano sempre "network passthrough"
+// esattamente come prima, per non mostrare mai dati non aggiornati.
 
-self.addEventListener('install', () => {
+const STATIC_CACHE = 'insidematch-static-v1';
+const OFFLINE_URL = '/offline.html';
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE).then((cache) => cache.addAll([OFFLINE_URL]))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== STATIC_CACHE).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', () => {
-  // network passthrough: nessuna intercettazione/cache
+function isStaticAsset(url) {
+  return url.pathname.startsWith('/_next/static/')
+    || url.pathname.startsWith('/icons/')
+    || url.pathname.startsWith('/branding/')
+    || /\.(png|jpg|jpeg|svg|webp|woff2?)$/.test(url.pathname);
+}
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  if (url.origin !== self.location.origin) return;
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    );
+    return;
+  }
+
+  if (isStaticAsset(url)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
 });
 
 self.addEventListener('push', (event) => {
-  let data = { title: 'PointLab', body: 'Hai una nuova notifica', url: '/' };
+  let data = { title: 'InsideMatch', body: 'Hai una nuova notifica', url: '/' };
   try { data = { ...data, ...event.data.json() }; } catch (e) {}
   event.waitUntil(
     self.registration.showNotification(data.title, {
