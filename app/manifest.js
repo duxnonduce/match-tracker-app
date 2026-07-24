@@ -35,5 +35,11 @@ export default function manifest() {
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    screenshots: [
+      { src: '/screenshots/screenshot-1.png', sizes: '1320x2527', type: 'image/png', form_factor: 'narrow', label: 'Pagina iniziale' },
+      { src: '/screenshots/screenshot-2.png', sizes: '1320x2586', type: 'image/png', form_factor: 'narrow', label: 'Aggiungi un allievo' },
+      { src: '/screenshots/screenshot-3.png', sizes: '1313x2633', type: 'image/png', form_factor: 'narrow', label: 'Scheda tecnica e storico progressi' },
+      { src: '/screenshots/screenshot-4.png', sizes: '1320x2559', type: 'image/png', form_factor: 'narrow', label: 'Report e statistiche di partita' },
+    ],
   };
 }
